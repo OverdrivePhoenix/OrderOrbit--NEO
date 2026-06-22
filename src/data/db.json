@@ -301,6 +301,50 @@
       "status": "Cancelled",
       "sessionId": "temp_stripe_8i63evw",
       "createdAt": "2026-06-22T07:07:49.343Z"
+    },
+    {
+      "id": "order_pj1v9l0",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_2",
+          "name": "Bwakak cofee",
+          "price": 4500,
+          "quantity": 1
+        }
+      ],
+      "total": 8500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_2j1pah5",
+      "createdAt": "2026-06-22T13:29:58.553Z"
+    },
+    {
+      "id": "order_vy8g3s8",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_2",
+          "name": "Bwakak cofee",
+          "price": 4500,
+          "quantity": 1
+        }
+      ],
+      "total": 8500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_rn80kml",
+      "createdAt": "2026-06-22T13:30:00.590Z"
     }
   ],
   "reviews": [
@@ -314,5 +358,11 @@
       "createdAt": "2026-06-22T08:15:00.000Z"
     }
   ],
-  "dailySummaries": []
+  "dailySummaries": [
+    {
+      "id": "summary_1782135025630",
+      "date": "Monday, June 22, 2026",
+      "summary": "### 🍳 End-of-Day Kitchen Insights Summary (Simulated Gemini Flash)\n      \n- **Critical Quality Anomalies**:\n  - No major quality complaints received today. All ratings were above 3 stars!\n  \n- **Top Performers & Praise**:\n  - **Masala Dosa**: \"The dosa was extremely crispy and fresh!\" (5★)\n\n  \n- **Actionable Adjustments for Tomorrow**:\n  - Review ingredient saltiness thresholds for curries and soups if students report anomalies.\n  - Maintain the high quality of Masala Dosa prep as it continues to receive top student reviews.\n  - Monitor Cold Coffee stock levels earlier in the day to prevent early sold-out states."
+    }
+  ]
 }
