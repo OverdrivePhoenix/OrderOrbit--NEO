@@ -18,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased light`}>
+    <html lang="en" className={`${inter.variable} h-full antialiased light`} suppressHydrationWarning>
       <head>
         {/* Load Material Symbols Outlined for dashboard and action icons */}
         <link
