@@ -17,11 +17,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
+    // Determine if we need to run in Stripe Simulation Mode (for students without Stripe credentials)
+    const stripeKey = process.env.STRIPE_SECRET_KEY || "";
+    const runSimulation = 
+      !stripeKey || 
+      stripeKey.startsWith("sk_test_placeholder") || 
+      stripeKey === "";
+
     // Generate a temporary session reference
-    tempSessionRef = `temp_stripe_${Math.random().toString(36).substring(2, 9)}`;
+    tempSessionRef = `${runSimulation ? "sim" : "temp"}_stripe_${Math.random().toString(36).substring(2, 9)}`;
 
     // 2. ATOMIC TRANSACTION: Reserve stock in DB
-    // If stock is insufficient, this throws an error with a details message
     let pendingOrder;
     try {
       pendingOrder = await Database.reserveStock(cart, user.id, tempSessionRef);
@@ -29,9 +35,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: stockError.message }, { status: 400 });
     }
 
-    // 3. Map items to Stripe Line Items
+    // 3. If in Simulation Mode, skip Stripe API and redirect to the local mock payment screen
+    if (runSimulation) {
+      console.log("Stripe Simulation Mode active. Redirecting to local simulation portal.");
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      return NextResponse.json({ url: `/checkout-simulation?session_id=${tempSessionRef}` });
+    }
+
+    // 4. Map items to Stripe Line Items for real Stripe Checkout
     const lineItems = pendingOrder.items.map((item) => {
-      // price is in cents in db
       return {
         price_data: {
           currency: "usd",
@@ -46,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    // 4. Create Stripe Checkout Session
+    // 5. Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: lineItems,
@@ -59,7 +71,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 5. Update Order in DB to bind the actual Stripe Session ID
+    // 6. Update Order in DB to bind the actual Stripe Session ID
     await Database.write((db) => {
       const order = db.orders.find((o) => o.sessionId === tempSessionRef);
       if (order) {
@@ -67,12 +79,11 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 6. Return Stripe checkout session URL
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
-    console.error("Stripe Session Creation Failed:", error);
+    console.error("Session Creation Failed:", error);
 
-    // Rollback stock reservation if we hit any Stripe error
+    // Rollback stock reservation if we hit any error
     if (tempSessionRef) {
       try {
         await Database.releaseReservedStock(tempSessionRef);
