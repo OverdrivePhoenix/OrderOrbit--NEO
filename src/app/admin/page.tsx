@@ -1,0 +1,849 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { MenuItem, Order, Review, DailySummary } from "@/data/db";
+
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [summaries, setSummaries] = useState<DailySummary[]>([]);
+  const [activeTab, setActiveTab] = useState<"orders" | "inventory" | "ai" | "analytics">("orders");
+
+  // AI loading state
+  const [generatingAI, setGeneratingAI] = useState(false);
+  
+  // CRUD modal states
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItemData, setNewItemData] = useState({
+    name: "",
+    price: 0, // in dollars for input, will convert to cents
+    prepTime: 10,
+    stock: 20,
+    category: "Snacks",
+    image: "",
+  });
+
+  const [editItemData, setEditItemData] = useState({
+    id: "",
+    name: "",
+    price: 0,
+    prepTime: 10,
+    stock: 20,
+    category: "Snacks",
+    image: "",
+    available: true,
+  });
+
+  // Analytics Metrics
+  const [analytics, setAnalytics] = useState<any[]>([]);
+
+  const fetchAllData = async () => {
+    try {
+      const ordersRes = await fetch("/api/orders");
+      if (ordersRes.status === 403 || ordersRes.status === 401) {
+        router.push("/login");
+        return;
+      }
+      const ordersData = await ordersRes.json();
+      setOrders(ordersData.orders || []);
+
+      const menuRes = await fetch("/api/menu");
+      const menuData = await menuRes.json();
+      setMenu(menuData.menu || []);
+
+      const reviewsRes = await fetch("/api/reviews");
+      const reviewsData = await reviewsRes.json();
+      setReviews(reviewsData.reviews || []);
+
+      const summariesRes = await fetch("/api/ai");
+      if (summariesRes.ok) {
+        const summariesData = await summariesRes.json();
+        setSummaries(summariesData.summaries || []);
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard data", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
+
+    // Poll data every 8 seconds for real-time dashboard feel
+    const interval = setInterval(fetchAllData, 8000);
+    return () => clearInterval(interval);
+  }, [router]);
+
+  // Compute telemetry metrics when menu, orders, or reviews change
+  useEffect(() => {
+    if (menu.length === 0) return;
+
+    // 1. Calculate sales count and avg rating for each menu item
+    const itemsStats = menu.map((item) => {
+      // Find orders that contain this item
+      const itemOrders = orders.filter(
+        (o) => o.status === "Fulfilled" || o.status === "Pending" || o.status === "Preparing" || o.status === "Ready"
+      );
+      const salesCount = itemOrders.reduce((sum, order) => {
+        const orderItem = order.items.find((i) => i.id === item.id);
+        return sum + (orderItem ? orderItem.quantity : 0);
+      }, 0);
+
+      // Find reviews for this item
+      const itemReviews = reviews.filter((r) => r.itemId === item.id);
+      const avgRating =
+        itemReviews.length > 0
+          ? itemReviews.reduce((sum, r) => sum + r.rating, 0) / itemReviews.length
+          : 0;
+
+      return {
+        ...item,
+        salesCount,
+        avgRating: Number(avgRating.toFixed(1)),
+        reviewCount: itemReviews.length,
+      };
+    });
+
+    // 2. Classify items into quadrants
+    // Define thresholds based on averages or default constants
+    const avgSales = itemsStats.reduce((sum, i) => sum + i.salesCount, 0) / itemsStats.length || 1;
+    const ratingThreshold = 4.0; // standard out of 5 stars
+
+    const classified = itemsStats.map((item) => {
+      let quadrant = "Underperformer";
+      let colorClass = "bg-gray-100 text-gray-800 border-gray-300";
+      let recommendation = "";
+
+      if (item.salesCount >= avgSales && item.avgRating >= ratingThreshold) {
+        quadrant = "Crowd Pleaser";
+        colorClass = "bg-emerald-50 text-emerald-800 border-emerald-300";
+        recommendation = "🌟 High sales & high ratings! Prominently feature on top of the menu.";
+      } else if (item.salesCount >= avgSales && item.avgRating < ratingThreshold) {
+        quadrant = "Needs Quality Attention";
+        colorClass = "bg-amber-50 text-amber-800 border-amber-300";
+        recommendation = "⚠️ High sales but low ratings. Inspect recipe quality (less salt, fresher ingredients).";
+      } else if (item.salesCount < avgSales && item.avgRating >= ratingThreshold) {
+        quadrant = "High Potential";
+        colorClass = "bg-sky-50 text-sky-800 border-sky-300";
+        recommendation = "📈 Loved by buyers but low sales. Launch a promotion or discount to boost visibility.";
+      } else {
+        quadrant = "Underperformer";
+        colorClass = "bg-rose-50 text-rose-800 border-rose-300";
+        recommendation = "❌ Low sales & low ratings. Adapt recipe or consider replacing with a new item.";
+      }
+
+      // Special case: if there are no reviews, we don't punish rating heavily
+      if (item.reviewCount === 0 && item.salesCount >= avgSales) {
+        quadrant = "Crowd Pleaser";
+        colorClass = "bg-emerald-50 text-emerald-800 border-emerald-300";
+        recommendation = "🌟 High sales. Encourage students to leave reviews.";
+      }
+
+      return {
+        ...item,
+        quadrant,
+        colorClass,
+        recommendation,
+      };
+    });
+
+    setAnalytics(classified);
+  }, [menu, orders, reviews]);
+
+  const handleUpdateOrderStatus = async (orderId: string, nextStatus: string) => {
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: orderId, status: nextStatus }),
+      });
+
+      if (res.ok) {
+        // Optimistic UI update
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus as any } : o))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to update status", err);
+    }
+  };
+
+  const handleToggleAvailability = async (item: MenuItem) => {
+    const nextAvailability = !item.available;
+    // If setting to available, ensure stock is at least 10 for demo purposes, else 0 when disabling
+    const nextStock = nextAvailability ? Math.max(item.stock, 10) : 0;
+
+    try {
+      const res = await fetch("/api/menu", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: item.id,
+          available: nextAvailability,
+          stock: nextStock,
+        }),
+      });
+
+      if (res.ok) {
+        // Optimistic UI update
+        setMenu((prev) =>
+          prev.map((m) =>
+            m.id === item.id ? { ...m, available: nextAvailability, stock: nextStock } : m
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to toggle availability", err);
+    }
+  };
+
+  const handleAddMenuItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...newItemData,
+        price: Math.round(newItemData.price * 100), // convert to cents
+      };
+
+      const res = await fetch("/api/menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setShowAddModal(false);
+        setNewItemData({
+          name: "",
+          price: 0,
+          prepTime: 10,
+          stock: 20,
+          category: "Snacks",
+          image: "",
+        });
+        fetchAllData();
+      }
+    } catch (err) {
+      console.error("Failed to add menu item", err);
+    }
+  };
+
+  const handleEditMenuItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...editItemData,
+        price: Math.round(editItemData.price * 100), // convert to cents
+      };
+
+      const res = await fetch("/api/menu", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setEditingItem(null);
+        fetchAllData();
+      }
+    } catch (err) {
+      console.error("Failed to edit menu item", err);
+    }
+  };
+
+  const openEditModal = (item: MenuItem) => {
+    setEditingItem(item);
+    setEditItemData({
+      id: item.id,
+      name: item.name,
+      price: item.price / 100, // convert cents to dollars
+      prepTime: item.prepTime,
+      stock: item.stock,
+      category: item.category,
+      image: item.image,
+      available: item.available,
+    });
+  };
+
+  const handleGenerateAIInsights = async () => {
+    setGeneratingAI(true);
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setSummaries((prev) => [data.summary, ...prev]);
+        fetchAllData();
+      }
+    } catch (e) {
+      console.error("Failed compiling AI insights", e);
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth", { method: "DELETE" });
+    router.push("/login");
+  };
+
+  // Stats calculation
+  const pendingCount = orders.filter((o) => o.status === "Pending").length;
+  const preparingCount = orders.filter((o) => o.status === "Preparing").length;
+  const dailyTotalCents = orders
+    .filter((o) => o.status === "Fulfilled" || o.status === "Ready" || o.status === "Preparing")
+    .reduce((sum, o) => sum + o.total, 0);
+
+  return (
+    <div className="min-h-screen pb-24 md:pb-8 bg-[#f7f9ff]">
+      {/* TopNavBar */}
+      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-white shadow-sm border-b border-outline-variant/10">
+        <div className="flex items-center gap-4">
+          <span className="font-extrabold text-2xl text-primary tracking-tight">OrderOrbit</span>
+          <span className="px-3 py-1 bg-[#edf4ff] text-on-surface-variant rounded-full text-xs font-bold border border-outline-variant/10 hidden sm:block">
+            Admin Portal
+          </span>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="text-on-surface-variant hover:text-primary transition-colors text-sm font-semibold flex items-center gap-1 border border-outline-variant/30 px-3 py-1.5 rounded-full hover:bg-surface-container"
+        >
+          <span className="material-symbols-outlined text-sm">logout</span> Logout
+        </button>
+      </header>
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-6 pt-24">
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-outline-variant/20 mb-8 overflow-x-auto scrollbar-none">
+          {[
+            { id: "orders", label: "Fulfillment Queue", icon: "receipt_long" },
+            { id: "inventory", label: "Manage Inventory", icon: "inventory_2" },
+            { id: "analytics", label: "Telemetry & Analytics", icon: "monitoring" },
+            { id: "ai", label: "AI Kitchen Insights", icon: "psychology" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-6 py-3 font-bold text-sm whitespace-nowrap border-b-2 transition-all ${
+                activeTab === tab.id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant/50"
+              }`}
+            >
+              <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Dynamic Panel Content */}
+
+        {/* Tab 1: Orders Pipeline */}
+        {activeTab === "orders" && (
+          <section className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="font-extrabold text-2xl">Active Orders Queue</h2>
+                <p className="text-on-surface-variant text-sm mt-1">Process pre-ordered tokens in real time.</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-outline-variant/20 text-center">
+                  <div className="text-xs text-on-surface-variant">Pending Orders</div>
+                  <div className="text-lg font-extrabold text-primary">{pendingCount}</div>
+                </div>
+                <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-outline-variant/20 text-center">
+                  <div className="text-xs text-on-surface-variant">In Preparation</div>
+                  <div className="text-lg font-extrabold text-on-surface">{preparingCount}</div>
+                </div>
+                <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-outline-variant/20 text-center">
+                  <div className="text-xs text-on-surface-variant">Daily Revenue</div>
+                  <div className="text-lg font-extrabold text-[#006a62]">
+                    ${(dailyTotalCents / 100).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                      <th className="p-4">Token #</th>
+                      <th className="p-4">Time Placed</th>
+                      <th className="p-4">Items Ordered</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-outline-variant/10">
+                    {orders
+                      .filter((o) => o.status !== "Cancelled")
+                      .map((order) => {
+                        const isPending = order.status === "Pending";
+                        const isPreparing = order.status === "Preparing";
+                        const isReady = order.status === "Ready";
+                        const isFulfilled = order.status === "Fulfilled";
+
+                        return (
+                          <tr key={order.id} className="hover:bg-surface-container/20 transition-colors">
+                            <td className="p-4 font-extrabold text-primary text-base">{order.token}</td>
+                            <td className="p-4 text-on-surface-variant">
+                              {new Date(order.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </td>
+                            <td className="p-4">
+                              <div className="space-y-1">
+                                {order.items.map((i, index) => (
+                                  <div key={index} className="font-semibold text-xs text-on-surface">
+                                    {i.quantity}x {i.name}
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
+                                  isPending
+                                    ? "border-primary text-primary bg-primary/5"
+                                    : isPreparing
+                                    ? "border-gray-400 text-gray-500 bg-gray-50"
+                                    : isReady
+                                    ? "border-secondary text-secondary bg-secondary/5"
+                                    : "border-[#1e3244] text-[#1e3244] bg-[#edf4ff]"
+                                }`}
+                              >
+                                {order.status}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right">
+                              {isPending && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id, "Preparing")}
+                                  className="bg-primary hover:bg-surface-tint text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors active:scale-95 shadow-sm"
+                                >
+                                  Prepare Food
+                                </button>
+                              )}
+                              {isPreparing && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id, "Ready")}
+                                  className="bg-secondary hover:bg-secondary-container hover:text-on-secondary-container text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors active:scale-95 shadow-sm"
+                                >
+                                  Mark Ready
+                                </button>
+                              )}
+                              {isReady && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id, "Fulfilled")}
+                                  className="bg-[#1e3244] hover:bg-[#071d2e] text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors active:scale-95 shadow-sm"
+                                >
+                                  Mark Fulfilled
+                                </button>
+                              )}
+                              {isFulfilled && (
+                                <span className="text-xs text-on-surface-variant font-semibold">
+                                  Token Collected
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                    {orders.filter((o) => o.status !== "Cancelled").length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-on-surface-variant text-sm">
+                          No orders in fulfillment queue.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Tab 2: Inventory CRUD & Kill-switch */}
+        {activeTab === "inventory" && (
+          <section className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="font-extrabold text-2xl">Item Database Control</h2>
+                <p className="text-on-surface-variant text-sm mt-1">
+                  Adjust pricing, stock levels, or instantly toggle item availability.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-primary hover:bg-surface-tint text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-lg">add</span> Add New Item
+              </button>
+            </div>
+
+            {/* Menu Database Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {menu.map((item) => (
+                <div
+                  key={item.id}
+                  className={`bg-white rounded-2xl p-5 border border-outline-variant/20 shadow-sm flex flex-col justify-between ${
+                    !item.available ? "bg-red-50/20 border-red-200" : ""
+                  }`}
+                >
+                  <div>
+                    <div className="flex justify-between items-start gap-2 mb-3">
+                      <div>
+                        <h4 className="font-bold text-lg leading-tight">{item.name}</h4>
+                        <span className="text-xs font-semibold text-on-surface-variant bg-[#edf4ff] px-2.5 py-1 rounded-full border border-outline-variant/10">
+                          {item.category}
+                        </span>
+                      </div>
+                      <span className="text-[#006a62] font-bold text-base">
+                        ${(item.price / 100).toFixed(2)}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-on-surface-variant mb-4">
+                      Stock: <span className="font-bold">{item.stock}</span> | Prep Time:{" "}
+                      <span className="font-bold">{item.prepTime}m</span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-outline-variant/10 pt-4 mt-2">
+                    {/* Instant Sold Out Kill-switch */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleAvailability(item)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${
+                          item.available
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                            : "bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100"
+                        }`}
+                      >
+                        {item.available ? "🟢 Active Menu" : "🔴 Sold Out"}
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className="text-primary font-bold text-xs hover:underline flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-sm">edit</span> Edit Details
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Tab 3: Telemetry & Analytics Quadrants */}
+        {activeTab === "analytics" && (
+          <section className="space-y-6">
+            <div>
+              <h2 className="font-extrabold text-2xl">Structural Item Analytics Matrix</h2>
+              <p className="text-on-surface-variant text-sm mt-1">
+                Quadrant matrix analyzing item sales telemetry and student satisfaction scores.
+              </p>
+            </div>
+
+            {/* Quadrant Classification List */}
+            <div className="bg-white rounded-2xl p-6 border border-outline-variant/20 shadow-sm space-y-6">
+              <h3 className="font-bold text-lg mb-2">Item Quadrants & Operational Actions</h3>
+              <div className="space-y-4">
+                {analytics.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-4 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <h4 className="font-bold text-base text-on-surface">{item.name}</h4>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-extrabold border ${item.colorClass}`}
+                        >
+                          {item.quadrant}
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant mb-1">
+                        Sales count: <span className="font-bold text-on-surface">{item.salesCount} servings</span> |
+                        Avg rating: <span className="font-bold text-on-surface">{item.avgRating} ★</span> ({item.reviewCount} reviews)
+                      </p>
+                      <p className="text-sm font-semibold text-[#006a62]">{item.recommendation}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Tab 4: AI Insights summaries */}
+        {activeTab === "ai" && (
+          <section className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="font-extrabold text-2xl">End-of-Day Kitchen Insights Compilation</h2>
+                <p className="text-on-surface-variant text-sm mt-1">
+                  Compile daily text comments using Gemini Flash to adjust kitchen workflows.
+                </p>
+              </div>
+              <button
+                onClick={handleGenerateAIInsights}
+                disabled={generatingAI}
+                className="bg-primary hover:bg-surface-tint text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all hover:scale-105 active:scale-95 disabled:opacity-50 flex items-center gap-2 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-lg">psychology</span>
+                {generatingAI ? "Running Model..." : "Generate AI Insights Brief"}
+              </button>
+            </div>
+
+            {/* AI Summaries List */}
+            {summaries.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center border border-outline-variant/20">
+                <span className="material-symbols-outlined text-on-surface-variant text-5xl mb-2">psychology</span>
+                <p className="text-on-surface-variant text-sm">No insights briefs compiled yet. Click the button to analyze daily reviews.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {summaries.map((summary) => (
+                  <div
+                    key={summary.id}
+                    className="bg-white rounded-2xl p-6 border border-outline-variant/20 shadow-sm space-y-4"
+                  >
+                    <div className="flex justify-between items-center border-b border-outline-variant/10 pb-3">
+                      <span className="text-xs text-on-surface-variant font-bold">Brief Date: {summary.date}</span>
+                      <span className="bg-[#edf4ff] text-primary text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-outline-variant/20">
+                        Gemini Compiled
+                      </span>
+                    </div>
+
+                    <div className="prose prose-sm text-xs font-semibold text-on-surface-variant leading-relaxed whitespace-pre-line">
+                      {summary.summary}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+
+      {/* Add New Item Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-outline-variant/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150">
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <h3 className="font-extrabold text-xl mb-4">Add Menu Item</h3>
+            <form onSubmit={handleAddMenuItem} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-1">Item Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newItemData.name}
+                  onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
+                  className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold mb-1">Price ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={newItemData.price || ""}
+                    onChange={(e) => setNewItemData({ ...newItemData, price: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-1">Prep Time (m)</label>
+                  <input
+                    type="number"
+                    required
+                    value={newItemData.prepTime}
+                    onChange={(e) => setNewItemData({ ...newItemData, prepTime: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold mb-1">Initial Stock</label>
+                  <input
+                    type="number"
+                    required
+                    value={newItemData.stock}
+                    onChange={(e) => setNewItemData({ ...newItemData, stock: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-1">Category</label>
+                  <select
+                    value={newItemData.category}
+                    onChange={(e) => setNewItemData({ ...newItemData, category: e.target.value })}
+                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  >
+                    <option>Breakfast</option>
+                    <option>Lunch</option>
+                    <option>Snacks</option>
+                    <option>Beverages</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1">Image URL (Optional)</label>
+                <input
+                  type="text"
+                  value={newItemData.image}
+                  onChange={(e) => setNewItemData({ ...newItemData, image: e.target.value })}
+                  className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  placeholder="https://unsplash..."
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-primary hover:bg-surface-tint text-white font-extrabold py-3 rounded-xl shadow-sm transition-all"
+              >
+                Create Menu Item
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-outline-variant/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150">
+            <button
+              onClick={() => setEditingItem(null)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <h3 className="font-extrabold text-xl mb-4">Edit {editingItem.name}</h3>
+            <form onSubmit={handleEditMenuItem} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-1">Item Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editItemData.name}
+                  onChange={(e) => setEditItemData({ ...editItemData, name: e.target.value })}
+                  className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold mb-1">Price ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editItemData.price || ""}
+                    onChange={(e) => setEditItemData({ ...editItemData, price: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-1">Prep Time (m)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editItemData.prepTime}
+                    onChange={(e) => setEditItemData({ ...editItemData, prepTime: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold mb-1">Live Stock</label>
+                  <input
+                    type="number"
+                    required
+                    value={editItemData.stock}
+                    onChange={(e) => setEditItemData({ ...editItemData, stock: Number(e.target.value) })}
+                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-1">Category</label>
+                  <select
+                    value={editItemData.category}
+                    onChange={(e) => setEditItemData({ ...editItemData, category: e.target.value })}
+                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  >
+                    <option>Breakfast</option>
+                    <option>Lunch</option>
+                    <option>Snacks</option>
+                    <option>Beverages</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1">Image URL</label>
+                <input
+                  type="text"
+                  value={editItemData.image}
+                  onChange={(e) => setEditItemData({ ...editItemData, image: e.target.value })}
+                  className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="edit-available"
+                  checked={editItemData.available}
+                  onChange={(e) => setEditItemData({ ...editItemData, available: e.target.checked })}
+                  className="rounded text-primary focus:ring-primary h-4 w-4"
+                />
+                <label htmlFor="edit-available" className="text-sm font-bold text-on-surface">
+                  Item is Available for Pre-Order
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-primary hover:bg-surface-tint text-white font-extrabold py-3 rounded-xl shadow-sm transition-all"
+              >
+                Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

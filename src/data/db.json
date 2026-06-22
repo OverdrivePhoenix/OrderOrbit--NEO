@@ -1,0 +1,318 @@
+{
+  "users": [
+    {
+      "id": "u_student_1",
+      "email": "student@college.edu",
+      "password": "password",
+      "name": "Alex Student",
+      "role": "student",
+      "department": "Computer Science"
+    },
+    {
+      "id": "u_admin_1",
+      "email": "admin@college.edu",
+      "password": "password",
+      "name": "Cafeteria Manager",
+      "role": "admin",
+      "department": "Main Canteen"
+    }
+  ],
+  "menu": [
+    {
+      "id": "m_1",
+      "name": "Masala Dosa",
+      "price": 4000,
+      "prepTime": 10,
+      "stock": 10,
+      "category": "Breakfast",
+      "image": "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?q=80&w=400&auto=format&fit=crop",
+      "available": true
+    },
+    {
+      "id": "m_2",
+      "name": "Bwakak cofee",
+      "price": 4500,
+      "prepTime": 5,
+      "stock": 10,
+      "category": "Beverages",
+      "image": "https://images.unsplash.com/photo-1517701604599-bb29b565090c?q=80&w=400&auto=format&fit=crop",
+      "available": true
+    },
+    {
+      "id": "m_3",
+      "name": "Paneer Wrap",
+      "price": 6000,
+      "prepTime": 15,
+      "stock": 15,
+      "category": "Lunch",
+      "image": "https://images.unsplash.com/photo-1628191139360-408a06476b61?q=80&w=400&auto=format&fit=crop",
+      "available": true
+    },
+    {
+      "id": "m_4",
+      "name": "Grilled Veg Sandwich",
+      "price": 3500,
+      "prepTime": 5,
+      "stock": 25,
+      "category": "Snacks",
+      "image": "https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=400&auto=format&fit=crop",
+      "available": true
+    },
+    {
+      "id": "m_lj45wo0",
+      "name": "67 chai",
+      "price": 6900,
+      "prepTime": 10,
+      "stock": 20,
+      "category": "Snacks",
+      "image": "https://en.wikipedia.org/wiki/Sky",
+      "available": true
+    }
+  ],
+  "orders": [
+    {
+      "id": "order_mock_1",
+      "token": "#T-1021",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        }
+      ],
+      "total": 4000,
+      "status": "Fulfilled",
+      "sessionId": "cs_test_mock_1",
+      "createdAt": "2026-06-22T08:00:00.000Z"
+    },
+    {
+      "id": "order_mock_2",
+      "token": "#T-1022",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_3",
+          "name": "Paneer Wrap",
+          "price": 6000,
+          "quantity": 1
+        }
+      ],
+      "total": 6000,
+      "status": "Ready",
+      "sessionId": "cs_test_mock_2",
+      "createdAt": "2026-06-22T11:45:00.000Z"
+    },
+    {
+      "id": "order_nn11bcl",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 7500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_4fcldnp",
+      "createdAt": "2026-06-22T07:05:10.636Z"
+    },
+    {
+      "id": "order_zjpqq7l",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 7500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_p86dd3t",
+      "createdAt": "2026-06-22T07:05:14.976Z"
+    },
+    {
+      "id": "order_vmqvzh8",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 7500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_cbwrg1l",
+      "createdAt": "2026-06-22T07:05:15.910Z"
+    },
+    {
+      "id": "order_ai3rc6d",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 7500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_ssp4tis",
+      "createdAt": "2026-06-22T07:05:16.906Z"
+    },
+    {
+      "id": "order_2po4ulj",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 7500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_ccd8w68",
+      "createdAt": "2026-06-22T07:05:18.040Z"
+    },
+    {
+      "id": "order_p7g1dl5",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 7500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_1sz3z5s",
+      "createdAt": "2026-06-22T07:05:18.785Z"
+    },
+    {
+      "id": "order_908ur94",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_1",
+          "name": "Masala Dosa",
+          "price": 4000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 7500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_y8591u3",
+      "createdAt": "2026-06-22T07:05:19.670Z"
+    },
+    {
+      "id": "order_xiu2eul",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_3",
+          "name": "Paneer Wrap",
+          "price": 6000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 9500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_sjxin9n",
+      "createdAt": "2026-06-22T07:07:47.092Z"
+    },
+    {
+      "id": "order_slm51fx",
+      "userId": "u_student_1",
+      "items": [
+        {
+          "id": "m_3",
+          "name": "Paneer Wrap",
+          "price": 6000,
+          "quantity": 1
+        },
+        {
+          "id": "m_4",
+          "name": "Grilled Veg Sandwich",
+          "price": 3500,
+          "quantity": 1
+        }
+      ],
+      "total": 9500,
+      "status": "Cancelled",
+      "sessionId": "temp_stripe_8i63evw",
+      "createdAt": "2026-06-22T07:07:49.343Z"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "r_1",
+      "userId": "u_student_1",
+      "userName": "Alex Student",
+      "itemId": "m_1",
+      "rating": 5,
+      "comment": "The dosa was extremely crispy and fresh!",
+      "createdAt": "2026-06-22T08:15:00.000Z"
+    }
+  ],
+  "dailySummaries": []
+}
