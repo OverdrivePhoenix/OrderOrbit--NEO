@@ -18,6 +18,7 @@ export default function AdminDashboard() {
   // CRUD modal states
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedVerificationOrder, setSelectedVerificationOrder] = useState<Order | null>(null);
   const [newItemData, setNewItemData] = useState({
     name: "",
     price: 0,
@@ -350,18 +351,33 @@ export default function AdminDashboard() {
                 <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-outline-variant/20 text-center">
                   <div className="text-xs text-on-surface-variant">Daily Revenue</div>
                   <div className="text-lg font-extrabold text-[#006a62]">
-                    ${(dailyTotalCents / 100).toFixed(2)}
+                    ₹{(dailyTotalCents / 100).toFixed(2)}
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Warning banner for Pending Verification */}
+            {orders.filter((o) => o.status === "Pending Verification").length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="flex items-start sm:items-center gap-3">
+                  <span className="material-symbols-outlined text-amber-600 text-3xl">warning</span>
+                  <div>
+                    <h4 className="font-extrabold text-amber-800 text-sm sm:text-base">Action Required: UPI Receipts Pending Manual Review</h4>
+                    <p className="text-amber-700 text-xs mt-0.5">
+                      {orders.filter((o) => o.status === "Pending Verification").length} order(s) failed AI auto-verification. Please review and approve them manually.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
-                      <th className="p-4">Token #</th>
+                      <th className="p-4">Token # / Ref</th>
                       <th className="p-4">Time Placed</th>
                       <th className="p-4">Items Ordered</th>
                       <th className="p-4">Status</th>
@@ -371,15 +387,32 @@ export default function AdminDashboard() {
                   <tbody className="text-sm divide-y divide-outline-variant/10">
                     {orders
                       .filter((o) => o.status !== "Cancelled")
+                      .sort((a, b) => {
+                        const score = (status: string) => {
+                          if (status === "Pending Verification") return 0;
+                          if (status === "Pending") return 1;
+                          if (status === "Preparing") return 2;
+                          if (status === "Ready") return 3;
+                          return 4;
+                        };
+                        return score(a.status) - score(b.status);
+                      })
                       .map((order) => {
                         const isPending = order.status === "Pending";
                         const isPreparing = order.status === "Preparing";
                         const isReady = order.status === "Ready";
                         const isFulfilled = order.status === "Fulfilled";
+                        const isPendingVerification = order.status === "Pending Verification";
 
                         return (
                           <tr key={order.id} className="hover:bg-surface-container/20 transition-colors">
-                            <td className="p-4 font-extrabold text-primary text-base">{order.token}</td>
+                            <td className="p-4 font-extrabold text-primary text-base">
+                              {order.token || (
+                                <span className="px-2.5 py-1 bg-amber-100 text-amber-800 text-[10px] rounded-full font-bold uppercase border border-amber-200">
+                                  Verify Pay
+                                </span>
+                              )}
+                            </td>
                             <td className="p-4 text-on-surface-variant">
                               {new Date(order.createdAt).toLocaleTimeString([], {
                                 hour: "2-digit",
@@ -404,6 +437,8 @@ export default function AdminDashboard() {
                                     ? "border-gray-400 text-gray-500 bg-gray-50"
                                     : isReady
                                     ? "border-secondary text-secondary bg-secondary/5"
+                                    : isPendingVerification
+                                    ? "border-amber-500 text-amber-700 bg-amber-50"
                                     : "border-[#1e3244] text-[#1e3244] bg-[#edf4ff]"
                                 }`}
                               >
@@ -411,6 +446,15 @@ export default function AdminDashboard() {
                               </span>
                             </td>
                             <td className="p-4 text-right">
+                              {isPendingVerification && (
+                                <button
+                                  onClick={() => setSelectedVerificationOrder(order)}
+                                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors active:scale-95 shadow-sm flex items-center gap-1 ml-auto"
+                                >
+                                  <span className="material-symbols-outlined text-sm">qr_code_scanner</span>
+                                  Review Pay
+                                </button>
+                              )}
                               {isPending && (
                                 <button
                                   onClick={() => handleUpdateOrderStatus(order.id, "Preparing")}
@@ -493,7 +537,7 @@ export default function AdminDashboard() {
                         </span>
                       </div>
                       <span className="text-[#006a62] font-bold text-base">
-                        ${(item.price / 100).toFixed(2)}
+                        ₹{(item.price / 100).toFixed(2)}
                       </span>
                     </div>
 
@@ -643,7 +687,7 @@ export default function AdminDashboard() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold mb-1">Price ($)</label>
+                  <label className="block text-sm font-bold mb-1">Price (₹)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -738,7 +782,7 @@ export default function AdminDashboard() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold mb-1">Price ($)</label>
+                  <label className="block text-sm font-bold mb-1">Price (₹)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -816,6 +860,93 @@ export default function AdminDashboard() {
                 Save Changes
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedVerificationOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-outline-variant/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150 flex flex-col max-h-[90vh]">
+            <button
+              onClick={() => setSelectedVerificationOrder(null)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1.5 hover:bg-surface-container rounded-full transition-colors"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <h3 className="font-extrabold text-xl mb-2 flex items-center gap-2 text-on-surface">
+              <span className="material-symbols-outlined text-amber-500">receipt_long</span>
+              Review UPI Transaction Receipt
+            </h3>
+            <p className="text-on-surface-variant text-xs mb-4">
+              Inspect the screenshot and verify if the payment was successfully credited to the canteen UPI account.
+            </p>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin">
+              {/* Order Info Grid */}
+              <div className="grid grid-cols-2 gap-4 bg-[#f7f9ff] p-4 rounded-xl border border-outline-variant/15 text-xs font-semibold text-on-surface-variant">
+                <div>
+                  <span className="text-[10px] uppercase text-on-surface-variant/70 block">Student Reference</span>
+                  <span className="text-on-surface font-bold">{selectedVerificationOrder.userId}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-on-surface-variant/70 block">Submitted UTR</span>
+                  <span className="text-on-surface font-bold tracking-wider">{selectedVerificationOrder.utr || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-on-surface-variant/70 block">Expected Price</span>
+                  <span className="text-emerald-700 font-extrabold text-sm">₹{(selectedVerificationOrder.total / 100).toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase text-on-surface-variant/70 block">Items Detail</span>
+                  <span className="text-on-surface font-bold">
+                    {selectedVerificationOrder.items.map((i) => `${i.quantity}x ${i.name}`).join(", ")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Receipt Image */}
+              <div className="space-y-2">
+                <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 block">Uploaded Receipt Screenshot</span>
+                <div className="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden p-2 flex justify-center max-h-[350px]">
+                  {selectedVerificationOrder.screenshotUrl ? (
+                    <img
+                      src={selectedVerificationOrder.screenshotUrl}
+                      alt="UPI Payment Screenshot"
+                      className="max-h-[330px] w-auto object-contain rounded-lg shadow-sm"
+                    />
+                  ) : (
+                    <div className="h-[200px] flex items-center justify-center text-on-surface-variant text-xs italic">
+                      No screenshot provided.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="grid grid-cols-2 gap-3 border-t border-outline-variant/10 pt-4 mt-4">
+              <button
+                onClick={async () => {
+                  await handleUpdateOrderStatus(selectedVerificationOrder.id, "Cancelled");
+                  setSelectedVerificationOrder(null);
+                }}
+                className="border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 font-extrabold py-2.5 rounded-xl transition-all text-sm active:scale-95 flex items-center justify-center gap-1"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+                Reject & Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await handleUpdateOrderStatus(selectedVerificationOrder.id, "Pending");
+                  setSelectedVerificationOrder(null);
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl transition-all text-sm active:scale-95 flex items-center justify-center gap-1 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-sm">check</span>
+                Approve Payment
+              </button>
+            </div>
           </div>
         </div>
       )}

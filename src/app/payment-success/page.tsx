@@ -95,7 +95,7 @@ function SuccessContent() {
           </div>
           <div className="text-right">
             <p>Total Paid</p>
-            <p className="text-base font-extrabold text-[#006a62] mt-0.5">${((order?.total || 0) / 100).toFixed(2)}</p>
+            <p className="text-base font-extrabold text-[#006a62] mt-0.5">₹{((order?.total || 0) / 100).toFixed(2)}</p>
           </div>
         </div>
       </div>

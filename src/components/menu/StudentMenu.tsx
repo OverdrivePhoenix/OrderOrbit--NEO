@@ -260,7 +260,7 @@ export default function StudentMenu() {
                   <div className="p-5 flex flex-col flex-grow">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-bold text-lg leading-tight">{item.name}</h3>
-                      <span className="text-[#006a62] font-bold text-lg">${(item.price / 100).toFixed(2)}</span>
+                      <span className="text-[#006a62] font-bold text-lg">₹{(item.price / 100).toFixed(2)}</span>
                     </div>
 
                     <p className="text-on-surface-variant text-xs mb-4 flex-grow">
@@ -351,7 +351,7 @@ export default function StudentMenu() {
                       </div>
 
                       <div className="flex items-center gap-4 justify-between md:justify-end">
-                        <span className="font-bold text-[#006a62]">${(order.total / 100).toFixed(2)}</span>
+                        <span className="font-bold text-[#006a62]">₹{(order.total / 100).toFixed(2)}</span>
                         {order.status === "Fulfilled" && (
                           <div className="flex gap-2">
                             {order.items.map((orderItem) => (
@@ -394,7 +394,7 @@ export default function StudentMenu() {
                     <div key={c.item.id} className="py-3 flex justify-between items-center gap-2">
                       <div className="flex-1">
                         <p className="font-bold text-sm">{c.item.name}</p>
-                        <p className="text-xs text-on-surface-variant">${(c.item.price / 100).toFixed(2)} each</p>
+                        <p className="text-xs text-on-surface-variant">₹{(c.item.price / 100).toFixed(2)} each</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -422,7 +422,7 @@ export default function StudentMenu() {
                   </div>
                   <div className="flex justify-between font-extrabold text-lg mb-4">
                     <span>Total Amount</span>
-                    <span className="text-[#006a62]">${(totalCartPrice / 100).toFixed(2)}</span>
+                    <span className="text-[#006a62]">₹{(totalCartPrice / 100).toFixed(2)}</span>
                   </div>
 
                   {checkoutError && (
@@ -436,8 +436,8 @@ export default function StudentMenu() {
                     disabled={loadingCheckout}
                     className="w-full bg-primary hover:bg-surface-tint text-white font-extrabold py-3.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
                   >
-                    <span className="material-symbols-outlined text-[20px]">credit_card</span>
-                    {loadingCheckout ? "Opening Stripe..." : "Proceed to Payment"}
+                    <span className="material-symbols-outlined text-[20px]">qr_code</span>
+                    {loadingCheckout ? "Generating UPI QR..." : "Proceed to UPI Checkout"}
                   </button>
                 </div>
               </div>

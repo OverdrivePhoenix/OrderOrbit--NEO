@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-// A simple global async Mutex to synchronize all database operations
+// Global Mutex to synchronize all database operations
 class Mutex {
   private queue: Promise<void> = Promise.resolve();
 
@@ -32,7 +32,7 @@ export interface User {
 export interface MenuItem {
   id: string;
   name: string;
-  price: number; // in cents
+  price: number; // in cents/paise (INR equivalent in paise, e.g. Rs. 40 = 4000 paise)
   prepTime: number; // in minutes
   stock: number;
   category: string;
@@ -43,7 +43,7 @@ export interface MenuItem {
 export interface OrderItem {
   id: string;
   name: string;
-  price: number; // in cents
+  price: number; // in paise
   quantity: number;
 }
 
@@ -52,9 +52,12 @@ export interface Order {
   token?: string; // e.g. #T-1024
   userId: string;
   items: OrderItem[];
-  total: number;
-  status: "Pending Payment" | "Pending" | "Preparing" | "Ready" | "Fulfilled" | "Cancelled";
-  sessionId: string; // Stripe Session ID
+  total: number; // in paise
+  status: "Pending Payment" | "Pending Verification" | "Pending" | "Preparing" | "Ready" | "Fulfilled" | "Cancelled";
+  sessionId: string; // UPI session ID
+  utr?: string; // 12-digit UPI UTR Code
+  screenshotUrl?: string; // base64 receipt representation
+  verifiedBy?: "AI" | "Admin" | null;
   createdAt: string;
 }
 
@@ -71,7 +74,7 @@ export interface Review {
 export interface DailySummary {
   id: string;
   date: string;
-  summary: string; // Markdown text
+  summary: string;
 }
 
 export interface DatabaseSchema {
@@ -101,7 +104,6 @@ export class Database {
     }
   }
 
-  // Generic lock-wrapped read
   static async read(): Promise<DatabaseSchema> {
     const release = await dbMutex.acquire();
     try {
@@ -111,7 +113,6 @@ export class Database {
     }
   }
 
-  // Generic lock-wrapped write
   static async write(updater: (db: DatabaseSchema) => void): Promise<DatabaseSchema> {
     const release = await dbMutex.acquire();
     try {
@@ -125,8 +126,7 @@ export class Database {
   }
 
   /**
-   * ATOMIC TRANSACTION: Check stock and reserve immediately before Stripe session creation.
-   * If stock is insufficient, throws an error.
+   * ATOMIC TRANSACTION: Check stock and reserve immediately before rendering UPI QR.
    */
   static async reserveStock(
     cartItems: { id: string; quantity: number }[],
@@ -147,7 +147,7 @@ export class Database {
           throw new Error(`"${menuItem.name}" is currently sold out!`);
         }
         if (menuItem.stock < cartItem.quantity) {
-          throw new Error(`Insufficient stock for "${menuItem.name}". Only ${menuItem.stock} items remaining.`);
+          throw new Error(`Insufficient stock for "${menuItem.name}". Only ${menuItem.stock} servings remaining.`);
         }
       }
 
@@ -159,7 +159,6 @@ export class Database {
         const menuItem = db.menu.find((item) => item.id === cartItem.id)!;
         menuItem.stock -= cartItem.quantity;
         
-        // Auto sold out toggle if stock hits zero
         if (menuItem.stock === 0) {
           menuItem.available = false;
         }
@@ -185,8 +184,6 @@ export class Database {
       };
 
       db.orders.push(newOrder);
-
-      // Save database changes
       this.writeRaw(db);
       return newOrder;
     } finally {
@@ -195,13 +192,13 @@ export class Database {
   }
 
   /**
-   * RELEASE RESERVED STOCK: If Stripe payment fails or is cancelled, restore stock.
+   * RELEASE RESERVED STOCK: If payment is cancelled or expires, restore stock.
    */
   static async releaseReservedStock(sessionId: string): Promise<void> {
     const release = await dbMutex.acquire();
     try {
       const db = this.readRaw();
-      const order = db.orders.find((o) => o.sessionId === sessionId && o.status === "Pending Payment");
+      const order = db.orders.find((o) => o.sessionId === sessionId && (o.status === "Pending Payment" || o.status === "Pending Verification"));
       
       if (!order) return;
 
@@ -222,9 +219,31 @@ export class Database {
   }
 
   /**
-   * CONFIRM ORDER: Upon Stripe webhook confirmation, finalize the order and generate token.
+   * SUBMIT FOR MANUAL VERIFICATION: If AI fails, save UTR and receipt screenshot for Admin.
    */
-  static async confirmOrder(sessionId: string): Promise<Order | null> {
+  static async submitForVerification(sessionId: string, utr: string, screenshotUrl: string): Promise<Order | null> {
+    const release = await dbMutex.acquire();
+    try {
+      const db = this.readRaw();
+      const order = db.orders.find((o) => o.sessionId === sessionId);
+      if (!order) return null;
+
+      order.status = "Pending Verification";
+      order.utr = utr;
+      order.screenshotUrl = screenshotUrl;
+      order.verifiedBy = null;
+
+      this.writeRaw(db);
+      return order;
+    } finally {
+      release();
+    }
+  }
+
+  /**
+   * CONFIRM ORDER: Confirm payment (via AI auto-approval or Admin manual approval).
+   */
+  static async confirmOrder(sessionId: string, utr: string, verifiedBy: "AI" | "Admin"): Promise<Order | null> {
     const release = await dbMutex.acquire();
     try {
       const db = this.readRaw();
@@ -232,29 +251,31 @@ export class Database {
       
       if (!order) return null;
 
-      // Only transition if not already confirmed
-      if (order.status === "Pending Payment" || order.status === "Cancelled") {
-        // Generate sequential token #T-XXXX
-        let nextTokenNumber = 1024;
-        const activeTokens = db.orders
-          .map((o) => o.token)
-          .filter((t): t is string => !!t && t.startsWith("#T-"));
-
-        if (activeTokens.length > 0) {
-          const numbers = activeTokens.map((t) => parseInt(t.replace("#T-", ""), 10));
-          nextTokenNumber = Math.max(...numbers) + 1;
-        }
-
-        order.token = `#T-${nextTokenNumber}`;
-        order.status = "Pending";
-        order.createdAt = new Date().toISOString(); // refresh timestamp on confirmation
-        
-        this.writeRaw(db);
-      }
+      // Transition to active Pending (kitchen prep)
+      order.token = this.generateToken(db);
+      order.status = "Pending";
+      order.utr = utr;
+      order.verifiedBy = verifiedBy;
+      order.createdAt = new Date().toISOString();
       
+      this.writeRaw(db);
       return order;
     } finally {
       release();
     }
+  }
+
+  private static generateToken(db: DatabaseSchema): string {
+    let nextTokenNumber = 1024;
+    const activeTokens = db.orders
+      .map((o) => o.token)
+      .filter((t): t is string => !!t && t.startsWith("#T-"));
+
+    if (activeTokens.length > 0) {
+      const numbers = activeTokens.map((t) => parseInt(t.replace("#T-", ""), 10));
+      nextTokenNumber = Math.max(...numbers) + 1;
+    }
+
+    return `#T-${nextTokenNumber}`;
   }
 }
