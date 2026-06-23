@@ -166,6 +166,21 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleUpdateItemStatus = async (orderId: string, itemId: string, nextStatus: string) => {
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: orderId, itemId, itemStatus: nextStatus }),
+      });
+      if (res.ok) {
+        fetchAllData();
+      }
+    } catch (err) {
+      console.error("Failed to update item status", err);
+    }
+  };
+
   const handleToggleAvailability = async (item: MenuItem) => {
     const nextAvailability = !item.available;
     const nextStock = nextAvailability ? Math.max(item.stock, 10) : 0;
@@ -286,6 +301,32 @@ export default function AdminDashboard() {
     router.push("/login");
   };
 
+  const getPrepItems = (categoryType: "drinks" | "snacks" | "meals") => {
+    const list: { orderId: string; token: string; item: any; orderCreatedAt: string }[] = [];
+    orders
+      .filter((o) => o.status === "Pending" || o.status === "Preparing")
+      .forEach((o) => {
+        o.items.forEach((item) => {
+          const cat = (item.category || "").toLowerCase();
+          let targetBoard: "drinks" | "snacks" | "meals" = "meals";
+          if (cat === "beverages") {
+            targetBoard = "drinks";
+          } else if (cat === "snacks" || cat === "breakfast") {
+            targetBoard = "snacks";
+          }
+          if (targetBoard === categoryType) {
+            list.push({
+              orderId: o.id,
+              token: o.token || "N/A",
+              item,
+              orderCreatedAt: o.createdAt,
+            });
+          }
+        });
+      });
+    return list.sort((a, b) => new Date(a.orderCreatedAt).getTime() - new Date(b.orderCreatedAt).getTime());
+  };
+
   const pendingCount = orders.filter((o) => o.status === "Pending").length;
   const preparingCount = orders.filter((o) => o.status === "Preparing").length;
   const dailyTotalCents = orders
@@ -372,7 +413,219 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {/* Category Parallel Prep Queues */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Drinks Board */}
+              <div className="bg-white rounded-2xl p-5 border border-outline-variant/20 shadow-sm flex flex-col min-h-[350px]">
+                <div className="flex justify-between items-center border-b border-outline-variant/10 pb-3 mb-4">
+                  <h3 className="font-extrabold text-base flex items-center gap-2 text-on-surface">
+                    <span>🍹</span> Drinks Board
+                  </h3>
+                  <span className="bg-[#edf4ff] text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-outline-variant/20">
+                    {getPrepItems("drinks").filter(x => x.item.prepStatus !== "Completed").length} active
+                  </span>
+                </div>
+                <div className="flex-grow space-y-3 overflow-y-auto max-h-[350px] pr-1">
+                  {getPrepItems("drinks").length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-on-surface-variant text-xs italic py-12">
+                      No beverages in prep
+                    </div>
+                  ) : (
+                    getPrepItems("drinks").map(({ orderId, token, item }) => (
+                      <div
+                        key={`${orderId}-${item.id}`}
+                        className={`p-3 rounded-xl border transition-all text-xs font-semibold ${
+                          item.prepStatus === "Completed"
+                            ? "bg-emerald-50/20 border-emerald-100 opacity-60"
+                            : item.prepStatus === "Preparing"
+                            ? "bg-sky-50/20 border-sky-200"
+                            : "bg-[#f7f9ff] border-outline-variant/15"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-extrabold text-primary text-sm">{token}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              item.prepStatus === "Completed"
+                                ? "border-emerald-300 text-emerald-800 bg-emerald-50"
+                                : item.prepStatus === "Preparing"
+                                ? "border-sky-300 text-sky-800 bg-sky-50"
+                                : "border-amber-300 text-amber-800 bg-amber-50"
+                            }`}
+                          >
+                            {item.prepStatus || "Pending"}
+                          </span>
+                        </div>
+                        <div className="text-on-surface text-sm font-bold mb-3">
+                          {item.quantity}x {item.name}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          {item.prepStatus === "Pending" && (
+                            <button
+                              onClick={() => handleUpdateItemStatus(orderId, item.id, "Preparing")}
+                              className="bg-primary hover:bg-surface-tint text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors"
+                            >
+                              Start Prep
+                            </button>
+                          )}
+                          {item.prepStatus === "Preparing" && (
+                            <button
+                              onClick={() => handleUpdateItemStatus(orderId, item.id, "Completed")}
+                              className="bg-[#006a62] hover:bg-[#00504a] text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors"
+                            >
+                              Mark Done
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Snacks Board */}
+              <div className="bg-white rounded-2xl p-5 border border-outline-variant/20 shadow-sm flex flex-col min-h-[350px]">
+                <div className="flex justify-between items-center border-b border-outline-variant/10 pb-3 mb-4">
+                  <h3 className="font-extrabold text-base flex items-center gap-2 text-on-surface">
+                    <span>🥪</span> Snacks Board
+                  </h3>
+                  <span className="bg-[#edf4ff] text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-outline-variant/20">
+                    {getPrepItems("snacks").filter(x => x.item.prepStatus !== "Completed").length} active
+                  </span>
+                </div>
+                <div className="flex-grow space-y-3 overflow-y-auto max-h-[350px] pr-1">
+                  {getPrepItems("snacks").length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-on-surface-variant text-xs italic py-12">
+                      No snacks in prep
+                    </div>
+                  ) : (
+                    getPrepItems("snacks").map(({ orderId, token, item }) => (
+                      <div
+                        key={`${orderId}-${item.id}`}
+                        className={`p-3 rounded-xl border transition-all text-xs font-semibold ${
+                          item.prepStatus === "Completed"
+                            ? "bg-emerald-50/20 border-emerald-100 opacity-60"
+                            : item.prepStatus === "Preparing"
+                            ? "bg-sky-50/20 border-sky-200"
+                            : "bg-[#f7f9ff] border-outline-variant/15"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-extrabold text-primary text-sm">{token}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              item.prepStatus === "Completed"
+                                ? "border-emerald-300 text-emerald-800 bg-emerald-50"
+                                : item.prepStatus === "Preparing"
+                                ? "border-sky-300 text-sky-800 bg-sky-50"
+                                : "border-amber-300 text-amber-800 bg-amber-50"
+                            }`}
+                          >
+                            {item.prepStatus || "Pending"}
+                          </span>
+                        </div>
+                        <div className="text-on-surface text-sm font-bold mb-3">
+                          {item.quantity}x {item.name}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          {item.prepStatus === "Pending" && (
+                            <button
+                              onClick={() => handleUpdateItemStatus(orderId, item.id, "Preparing")}
+                              className="bg-primary hover:bg-surface-tint text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors"
+                            >
+                              Start Prep
+                            </button>
+                          )}
+                          {item.prepStatus === "Preparing" && (
+                            <button
+                              onClick={() => handleUpdateItemStatus(orderId, item.id, "Completed")}
+                              className="bg-[#006a62] hover:bg-[#00504a] text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors"
+                            >
+                              Mark Done
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Meals Board */}
+              <div className="bg-white rounded-2xl p-5 border border-outline-variant/20 shadow-sm flex flex-col min-h-[350px]">
+                <div className="flex justify-between items-center border-b border-outline-variant/10 pb-3 mb-4">
+                  <h3 className="font-extrabold text-base flex items-center gap-2 text-on-surface">
+                    <span>🍲</span> Meals Board
+                  </h3>
+                  <span className="bg-[#edf4ff] text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-outline-variant/20">
+                    {getPrepItems("meals").filter(x => x.item.prepStatus !== "Completed").length} active
+                  </span>
+                </div>
+                <div className="flex-grow space-y-3 overflow-y-auto max-h-[350px] pr-1">
+                  {getPrepItems("meals").length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-on-surface-variant text-xs italic py-12">
+                      No meals in prep
+                    </div>
+                  ) : (
+                    getPrepItems("meals").map(({ orderId, token, item }) => (
+                      <div
+                        key={`${orderId}-${item.id}`}
+                        className={`p-3 rounded-xl border transition-all text-xs font-semibold ${
+                          item.prepStatus === "Completed"
+                            ? "bg-emerald-50/20 border-emerald-100 opacity-60"
+                            : item.prepStatus === "Preparing"
+                            ? "bg-sky-50/20 border-sky-200"
+                            : "bg-[#f7f9ff] border-outline-variant/15"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-extrabold text-primary text-sm">{token}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              item.prepStatus === "Completed"
+                                ? "border-emerald-300 text-emerald-800 bg-emerald-50"
+                                : item.prepStatus === "Preparing"
+                                ? "border-sky-300 text-sky-800 bg-sky-50"
+                                : "border-amber-300 text-amber-800 bg-amber-50"
+                            }`}
+                          >
+                            {item.prepStatus || "Pending"}
+                          </span>
+                        </div>
+                        <div className="text-on-surface text-sm font-bold mb-3">
+                          {item.quantity}x {item.name}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          {item.prepStatus === "Pending" && (
+                            <button
+                              onClick={() => handleUpdateItemStatus(orderId, item.id, "Preparing")}
+                              className="bg-primary hover:bg-surface-tint text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors"
+                            >
+                              Start Prep
+                            </button>
+                          )}
+                          {item.prepStatus === "Preparing" && (
+                            <button
+                              onClick={() => handleUpdateItemStatus(orderId, item.id, "Completed")}
+                              className="bg-[#006a62] hover:bg-[#00504a] text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors"
+                            >
+                              Mark Done
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Verification & Pickup Desk Table */}
             <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-outline-variant/10">
+                <h3 className="font-extrabold text-lg text-on-surface">Verification & Pickup Desk</h3>
+                <p className="text-on-surface-variant text-xs mt-0.5">Manage receipt validations and ready order collections.</p>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -380,26 +633,23 @@ export default function AdminDashboard() {
                       <th className="p-4">Token # / Ref</th>
                       <th className="p-4">Time Placed</th>
                       <th className="p-4">Items Ordered</th>
-                      <th className="p-4">Status</th>
+                      <th className="p-4">Total Amount</th>
+                      <th className="p-4">Desk Status</th>
                       <th className="p-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm divide-y divide-outline-variant/10">
                     {orders
-                      .filter((o) => o.status !== "Cancelled")
+                      .filter((o) => o.status === "Pending Verification" || o.status === "Ready" || o.status === "Fulfilled")
                       .sort((a, b) => {
                         const score = (status: string) => {
                           if (status === "Pending Verification") return 0;
-                          if (status === "Pending") return 1;
-                          if (status === "Preparing") return 2;
-                          if (status === "Ready") return 3;
-                          return 4;
+                          if (status === "Ready") return 1;
+                          return 2;
                         };
                         return score(a.status) - score(b.status);
                       })
                       .map((order) => {
-                        const isPending = order.status === "Pending";
-                        const isPreparing = order.status === "Preparing";
                         const isReady = order.status === "Ready";
                         const isFulfilled = order.status === "Fulfilled";
                         const isPendingVerification = order.status === "Pending Verification";
@@ -422,20 +672,19 @@ export default function AdminDashboard() {
                             <td className="p-4">
                               <div className="space-y-1">
                                 {order.items.map((i, index) => (
-                                  <div key={index} className="font-semibold text-xs text-on-surface">
+                                  <div key={index} className="font-semibold text-xs text-on-surface font-sans">
                                     {i.quantity}x {i.name}
                                   </div>
                                 ))}
                               </div>
                             </td>
+                            <td className="p-4 font-bold text-[#006a62]">
+                              ₹{(order.total / 100).toFixed(2)}
+                            </td>
                             <td className="p-4">
                               <span
                                 className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
-                                  isPending
-                                    ? "border-primary text-primary bg-primary/5"
-                                    : isPreparing
-                                    ? "border-gray-400 text-gray-500 bg-gray-50"
-                                    : isReady
+                                  isReady
                                     ? "border-secondary text-secondary bg-secondary/5"
                                     : isPendingVerification
                                     ? "border-amber-500 text-amber-700 bg-amber-50"
@@ -455,26 +704,10 @@ export default function AdminDashboard() {
                                   Review Pay
                                 </button>
                               )}
-                              {isPending && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(order.id, "Preparing")}
-                                  className="bg-primary hover:bg-surface-tint text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors active:scale-95 shadow-sm"
-                                >
-                                  Prepare Food
-                                </button>
-                              )}
-                              {isPreparing && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(order.id, "Ready")}
-                                  className="bg-secondary hover:bg-secondary-container hover:text-on-secondary-container text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors active:scale-95 shadow-sm"
-                                >
-                                  Mark Ready
-                                </button>
-                              )}
                               {isReady && (
                                 <button
                                   onClick={() => handleUpdateOrderStatus(order.id, "Fulfilled")}
-                                  className="bg-[#1e3244] hover:bg-[#071d2e] text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors active:scale-95 shadow-sm"
+                                  className="bg-[#1e3244] hover:bg-[#071d2e] text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors active:scale-95 shadow-sm ml-auto"
                                 >
                                   Mark Fulfilled
                                 </button>
@@ -489,10 +722,10 @@ export default function AdminDashboard() {
                         );
                       })}
 
-                    {orders.filter((o) => o.status !== "Cancelled").length === 0 && (
+                    {orders.filter((o) => o.status === "Pending Verification" || o.status === "Ready" || o.status === "Fulfilled").length === 0 && (
                       <tr>
-                        <td colSpan={5} className="p-8 text-center text-on-surface-variant text-sm">
-                          No orders in fulfillment queue.
+                        <td colSpan={6} className="p-8 text-center text-on-surface-variant text-sm">
+                          No orders at Verification or Pickup desk.
                         </td>
                       </tr>
                     )}

@@ -14,6 +14,17 @@ export default function StudentMenu() {
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
 
+  // Wallet and payment states
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "upi">("wallet");
+  const [showTopupForm, setShowTopupForm] = useState(false);
+  const [topupAmount, setTopupAmount] = useState<number>(0);
+  const [loadingTopup, setLoadingTopup] = useState(false);
+  const [topupError, setTopupError] = useState("");
+
+  // Stock flashing animation state
+  const [flashingItems, setFlashingItems] = useState<Record<string, boolean>>({});
+
   // Review states
   const [reviewItem, setReviewItem] = useState<MenuItem | null>(null);
   const [rating, setRating] = useState(5);
@@ -38,6 +49,12 @@ export default function StudentMenu() {
 
         const menuData = await res.json();
         setMenu(menuData.menu || []);
+
+        const walletRes = await fetch("/api/wallet");
+        if (walletRes.ok) {
+          const walletData = await walletRes.json();
+          setWalletBalance(walletData.walletBalance || 0);
+        }
       } catch (err) {
         console.error("Auth check or loading failed", err);
       }
@@ -50,17 +67,48 @@ export default function StudentMenu() {
         const menuRes = await fetch("/api/menu");
         if (menuRes.ok) {
           const menuData = await menuRes.json();
-          setMenu(menuData.menu || []);
+          const nextMenu: MenuItem[] = menuData.menu || [];
+          setMenu((prevMenu) => {
+            if (prevMenu.length > 0) {
+              const changes: Record<string, boolean> = {};
+              let hasChanges = false;
+              nextMenu.forEach((newItem) => {
+                const oldItem = prevMenu.find((m) => m.id === newItem.id);
+                if (oldItem && oldItem.stock !== newItem.stock) {
+                  changes[newItem.id] = true;
+                  hasChanges = true;
+                }
+              });
+              if (hasChanges) {
+                setFlashingItems((prev) => ({ ...prev, ...changes }));
+                setTimeout(() => {
+                  setFlashingItems((prev) => {
+                    const next = { ...prev };
+                    Object.keys(changes).forEach((id) => {
+                      delete next[id];
+                    });
+                    return next;
+                  });
+                }, 1500);
+              }
+            }
+            return nextMenu;
+          });
         }
         const orderRes = await fetch("/api/orders");
         if (orderRes.ok) {
           const orderData = await orderRes.json();
           setOrders(orderData.orders || []);
         }
+        const walletRes = await fetch("/api/wallet");
+        if (walletRes.ok) {
+          const walletData = await walletRes.json();
+          setWalletBalance(walletData.walletBalance || 0);
+        }
       } catch (e) {
         console.error("Failed polling updates", e);
       }
-    }, 10000);
+    }, 2500);
 
     return () => clearInterval(interval);
   }, [router]);
@@ -95,6 +143,31 @@ export default function StudentMenu() {
   const totalCartPrice = cart.reduce((sum, item) => sum + item.item.price * item.quantity, 0);
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const handleTopupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (topupAmount <= 0) return;
+    setLoadingTopup(true);
+    setTopupError("");
+    try {
+      const res = await fetch("/api/wallet/topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Math.round(topupAmount * 100) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Top-up failed");
+      }
+      setWalletBalance(data.walletBalance);
+      setTopupAmount(0);
+      setShowTopupForm(false);
+    } catch (err: any) {
+      setTopupError(err.message || "Failed to load credits");
+    } finally {
+      setLoadingTopup(false);
+    }
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     setLoadingCheckout(true);
@@ -102,7 +175,8 @@ export default function StudentMenu() {
 
     try {
       const payload = {
-        cart: cart.map((c) => ({ id: c.item.id, quantity: c.quantity })),
+        cart: cart.map((c) => ({ id: c.item.id, quantity: c.quantity, version: c.item.version })),
+        paymentMethod,
       };
 
       const res = await fetch("/api/checkout/create-session", {
@@ -235,9 +309,11 @@ export default function StudentMenu() {
               return (
                 <div
                   key={item.id}
-                  className={`bg-white rounded-2xl overflow-hidden border border-outline-variant/20 shadow-sm flex flex-col transition-all duration-300 hover:shadow-md ${
-                    !isAvailable ? "opacity-75" : ""
-                  }`}
+                  className={`bg-white rounded-2xl overflow-hidden border shadow-sm flex flex-col transition-all duration-300 hover:shadow-md ${
+                    flashingItems[item.id]
+                      ? "border-amber-400 scale-102 bg-amber-50/15 duration-1500 animate-pulse"
+                      : "border-outline-variant/20"
+                  } ${!isAvailable ? "opacity-75" : ""}`}
                 >
                   <div className="relative h-44 w-full overflow-hidden bg-gray-100">
                     <img
@@ -375,8 +451,64 @@ export default function StudentMenu() {
           </section>
         </main>
 
-        <aside className="lg:col-span-4">
-          <div className="bg-white rounded-2xl p-6 border border-outline-variant/20 shadow-sm sticky top-24">
+        <aside className="lg:col-span-4 sticky top-24 space-y-6">
+          {/* Digital Wallet Panel */}
+          <div className="bg-white rounded-2xl p-6 border border-outline-variant/20 shadow-sm">
+            <div className="bg-gradient-to-br from-primary to-primary-container text-white rounded-2xl p-4 mb-2 shadow-sm flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-lg">account_balance_wallet</span>
+                  <span className="text-xs font-bold uppercase tracking-wider opacity-90">Campus Credits</span>
+                </div>
+                <span className="bg-white/20 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                  Instant Checkout
+                </span>
+              </div>
+              <div className="text-2xl font-extrabold">
+                ₹{(walletBalance / 100).toFixed(2)}
+              </div>
+              <button
+                onClick={() => setShowTopupForm(!showTopupForm)}
+                className="mt-2 text-center text-xs font-bold bg-white text-primary hover:bg-surface-container transition-all py-2 rounded-lg"
+              >
+                {showTopupForm ? "Hide Top-up Panel" : "⚡ Load Credits / Top-up"}
+              </button>
+            </div>
+
+            {showTopupForm && (
+              <form onSubmit={handleTopupSubmit} className="bg-[#f7f9ff] border border-outline-variant/20 rounded-xl p-4 mt-3 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <h4 className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wider">Top-up Credits</h4>
+                <div className="flex gap-2">
+                  <div className="relative flex-grow">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-on-surface-variant">₹</span>
+                    <input
+                      type="number"
+                      min="10"
+                      max="1000"
+                      required
+                      value={topupAmount || ""}
+                      onChange={(e) => setTopupAmount(Number(e.target.value))}
+                      className="w-full pl-6 pr-3 py-2 rounded-lg border border-outline-variant/40 bg-white focus:outline-none focus:border-primary text-sm font-semibold"
+                      placeholder="Amount"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loadingTopup}
+                    className="bg-primary hover:bg-surface-tint text-white font-bold px-4 py-2 rounded-lg text-xs transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {loadingTopup ? "Adding..." : "Add"}
+                  </button>
+                </div>
+                {topupError && (
+                  <p className="text-[10px] text-red-600 font-semibold">{topupError}</p>
+                )}
+              </form>
+            )}
+          </div>
+
+          {/* Basket List */}
+          <div className="bg-white rounded-2xl p-6 border border-outline-variant/20 shadow-sm">
             <h3 className="font-extrabold text-xl mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">shopping_basket</span>
               Your Basket
@@ -425,6 +557,37 @@ export default function StudentMenu() {
                     <span className="text-[#006a62]">₹{(totalCartPrice / 100).toFixed(2)}</span>
                   </div>
 
+                  {/* Payment Method Selector */}
+                  <div className="mb-4">
+                    <span className="text-xs font-bold text-on-surface-variant block mb-2">Payment Method</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("wallet")}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          paymentMethod === "wallet"
+                            ? "bg-[#edf4ff] border-primary text-primary"
+                            : "bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+                        Campus Wallet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod("upi")}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          paymentMethod === "upi"
+                            ? "bg-[#edf4ff] border-primary text-primary"
+                            : "bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-sm">qr_code</span>
+                        UPI QR Pay
+                      </button>
+                    </div>
+                  </div>
+
                   {checkoutError && (
                     <div className="p-3 mb-4 rounded-xl bg-tertiary-container/20 border border-tertiary-container text-tertiary text-xs font-semibold text-center leading-tight">
                       {checkoutError}
@@ -434,10 +597,19 @@ export default function StudentMenu() {
                   <button
                     onClick={handleCheckout}
                     disabled={loadingCheckout}
-                    className="w-full bg-primary hover:bg-surface-tint text-white font-extrabold py-3.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                    className="w-full bg-primary hover:bg-surface-tint text-white font-extrabold py-3.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[20px]">qr_code</span>
-                    {loadingCheckout ? "Generating UPI QR..." : "Proceed to UPI Checkout"}
+                    {paymentMethod === "wallet" ? (
+                      <>
+                        <span className="material-symbols-outlined text-[20px]">bolt</span>
+                        {loadingCheckout ? "Processing checkout..." : "Pay Instantly via Wallet"}
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[20px]">qr_code</span>
+                        {loadingCheckout ? "Generating UPI QR..." : "Proceed to UPI Checkout"}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

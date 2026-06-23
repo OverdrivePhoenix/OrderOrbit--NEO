@@ -27,17 +27,19 @@ export interface User {
   name: string;
   role: "student" | "admin";
   department: string;
+  walletBalance?: number; // In paise (Campus credits)
 }
 
 export interface MenuItem {
   id: string;
   name: string;
-  price: number; // in cents/paise (INR equivalent in paise, e.g. Rs. 40 = 4000 paise)
+  price: number; // in paise
   prepTime: number; // in minutes
   stock: number;
   category: string;
   image: string;
   available: boolean;
+  version?: number; // Optimistic locking version
 }
 
 export interface OrderItem {
@@ -45,6 +47,8 @@ export interface OrderItem {
   name: string;
   price: number; // in paise
   quantity: number;
+  category?: string; // category for parallel queues
+  prepStatus?: "Pending" | "Preparing" | "Completed"; // status for parallel queues
 }
 
 export interface Order {
@@ -69,6 +73,8 @@ export interface Review {
   rating: number; // 1-5
   comment: string;
   createdAt: string;
+  aggregated?: boolean; // daily cron aggregation flag
+  spam?: boolean; // spam classification flag
 }
 
 export interface DailySummary {
@@ -129,7 +135,7 @@ export class Database {
    * ATOMIC TRANSACTION: Check stock and reserve immediately before rendering UPI QR.
    */
   static async reserveStock(
-    cartItems: { id: string; quantity: number }[],
+    cartItems: { id: string; quantity: number; version?: number }[],
     userId: string,
     sessionId: string
   ): Promise<Order> {
@@ -149,15 +155,25 @@ export class Database {
         if (menuItem.stock < cartItem.quantity) {
           throw new Error(`Insufficient stock for "${menuItem.name}". Only ${menuItem.stock} servings remaining.`);
         }
+        // Concurrency Check (Optimistic Locking)
+        if (cartItem.version !== undefined && menuItem.version !== undefined && menuItem.version !== cartItem.version) {
+          throw new Error(`Concurrency collision: "${menuItem.name}" was modified by another transaction. Please reload the menu and try again.`);
+        }
       }
 
-      // 2. Decrement stock and calculate totals
+      // 2. Decrement stock, calculate totals, increment version
       const orderItems: OrderItem[] = [];
       let total = 0;
 
       for (const cartItem of cartItems) {
         const menuItem = db.menu.find((item) => item.id === cartItem.id)!;
         menuItem.stock -= cartItem.quantity;
+        
+        // Optimistic locking version increment
+        if (menuItem.version === undefined) {
+          menuItem.version = 1;
+        }
+        menuItem.version += 1;
         
         if (menuItem.stock === 0) {
           menuItem.available = false;
@@ -168,6 +184,8 @@ export class Database {
           name: menuItem.name,
           price: menuItem.price,
           quantity: cartItem.quantity,
+          category: menuItem.category, // store item category for prep queues
+          prepStatus: "Pending", // default parallel prep status
         });
         total += menuItem.price * cartItem.quantity;
       }
@@ -277,5 +295,153 @@ export class Database {
     }
 
     return `#T-${nextTokenNumber}`;
+  }
+
+  /**
+   * WALLET TRANSACTION: Check and deduct wallet credits, reserve stock, and confirm order atomically.
+   */
+  static async payWithWallet(
+    cartItems: { id: string; quantity: number; version?: number }[],
+    userId: string,
+    sessionId: string
+  ): Promise<Order> {
+    const release = await dbMutex.acquire();
+    try {
+      const db = this.readRaw();
+
+      // 1. Verify user exists and check wallet balance
+      const user = db.users.find((u) => u.id === userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // Calculate total price in paise
+      let total = 0;
+      for (const cartItem of cartItems) {
+        const menuItem = db.menu.find((item) => item.id === cartItem.id);
+        if (!menuItem) {
+          throw new Error(`Menu item not found: ${cartItem.id}`);
+        }
+        if (!menuItem.available) {
+          throw new Error(`"${menuItem.name}" is currently sold out!`);
+        }
+        if (menuItem.stock < cartItem.quantity) {
+          throw new Error(`Insufficient stock for "${menuItem.name}". Only ${menuItem.stock} servings remaining.`);
+        }
+        if (cartItem.version !== undefined && menuItem.version !== undefined && menuItem.version !== cartItem.version) {
+          throw new Error(`Concurrency collision: "${menuItem.name}" was modified by another transaction. Please reload the menu and try again.`);
+        }
+        total += menuItem.price * cartItem.quantity;
+      }
+
+      const balance = user.walletBalance || 0;
+      if (balance < total) {
+        throw new Error(`Insufficient wallet balance. Total: ₹${(total / 100).toFixed(2)}, Balance: ₹${(balance / 100).toFixed(2)}`);
+      }
+
+      // 2. Deduct wallet balance
+      user.walletBalance = balance - total;
+
+      // 3. Decrement stock, calculate totals, increment version
+      const orderItems: OrderItem[] = [];
+      for (const cartItem of cartItems) {
+        const menuItem = db.menu.find((item) => item.id === cartItem.id)!;
+        menuItem.stock -= cartItem.quantity;
+        
+        if (menuItem.version === undefined) {
+          menuItem.version = 1;
+        }
+        menuItem.version += 1;
+        
+        if (menuItem.stock === 0) {
+          menuItem.available = false;
+        }
+
+        orderItems.push({
+          id: menuItem.id,
+          name: menuItem.name,
+          price: menuItem.price,
+          quantity: cartItem.quantity,
+          category: menuItem.category,
+          prepStatus: "Pending",
+        });
+      }
+
+      // 4. Create confirmed order immediately
+      const newOrder: Order = {
+        id: `order_${Math.random().toString(36).substring(2, 9)}`,
+        userId,
+        items: orderItems,
+        total,
+        status: "Pending",
+        sessionId,
+        token: this.generateToken(db),
+        createdAt: new Date().toISOString(),
+        verifiedBy: "Admin", // auto wallet verification
+      };
+
+      db.orders.push(newOrder);
+      this.writeRaw(db);
+      return newOrder;
+    } finally {
+      release();
+    }
+  }
+
+  /**
+   * WALLET TOPUP: Atomically add credits to the student wallet.
+   */
+  static async topupWallet(userId: string, amount: number): Promise<number> {
+    const release = await dbMutex.acquire();
+    try {
+      const db = this.readRaw();
+      const user = db.users.find((u) => u.id === userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+      user.walletBalance = (user.walletBalance || 0) + amount;
+      this.writeRaw(db);
+      return user.walletBalance;
+    } finally {
+      release();
+    }
+  }
+
+  /**
+   * PARALLEL QUEUE ITEM STATUS UPDATE: Update preparation status of a specific item within an order.
+   * If all items are Completed, the order status transitions to "Ready".
+   */
+  static async updateOrderItemStatus(
+    orderId: string,
+    itemId: string,
+    newPrepStatus: "Pending" | "Preparing" | "Completed"
+  ): Promise<Order | null> {
+    const release = await dbMutex.acquire();
+    try {
+      const db = this.readRaw();
+      const order = db.orders.find((o) => o.id === orderId);
+      if (!order) return null;
+
+      const item = order.items.find((i) => i.id === itemId);
+      if (item) {
+        item.prepStatus = newPrepStatus;
+      }
+
+      // Check if ALL items in this order are now "Completed"
+      const allCompleted = order.items.every((i) => i.prepStatus === "Completed");
+      if (allCompleted && order.status !== "Ready" && order.status !== "Fulfilled" && order.status !== "Cancelled") {
+        order.status = "Ready";
+      } else if (order.status === "Pending" || order.status === "Preparing") {
+        const anyPreparing = order.items.some((i) => i.prepStatus === "Preparing" || i.prepStatus === "Completed");
+        if (anyPreparing) {
+          order.status = "Preparing";
+        }
+      }
+
+      this.writeRaw(db);
+      return order;
+    } finally {
+      release();
+    }
   }
 }

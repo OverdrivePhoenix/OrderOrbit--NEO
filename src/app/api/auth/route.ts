@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         name: user.name,
         role: user.role,
         department: user.department,
+        walletBalance: user.walletBalance || 0,
       },
     });
 

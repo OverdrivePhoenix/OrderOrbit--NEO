@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Order } from "@/data/db";
 import Link from "next/link";
+import QRCode from "qrcode";
 
 function UpiCheckoutContent() {
   const searchParams = useSearchParams();
@@ -22,6 +23,7 @@ function UpiCheckoutContent() {
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [manualVerificationSubmitting, setManualVerificationSubmitting] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
 
   useEffect(() => {
     if (!sessionId) {
@@ -48,6 +50,18 @@ function UpiCheckoutContent() {
 
     loadOrderDetails();
   }, [sessionId]);
+
+  useEffect(() => {
+    if (order) {
+      const orderTotalInRupees = (order.total || 0) / 100;
+      const upiPayee = "canteen@upi";
+      const upiName = "OrderOrbit College Canteen";
+      const upiLink = `upi://pay?pa=${upiPayee}&pn=${encodeURIComponent(upiName)}&am=${orderTotalInRupees.toFixed(2)}&tn=${order.id}&cu=INR`;
+      QRCode.toDataURL(upiLink, { width: 250, margin: 1 })
+        .then(url => setQrCodeUrl(url))
+        .catch(err => console.error("Failed to generate local QR code", err));
+    }
+  }, [order]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -144,12 +158,7 @@ function UpiCheckoutContent() {
   }
 
   const orderTotalInRupees = (order?.total || 0) / 100;
-  // Generate UPI Deep Link URL: pa = payee address, pn = payee name, am = amount, tn = transaction note (orderID)
   const upiPayee = "canteen@upi";
-  const upiName = "OrderOrbit College Canteen";
-  const upiLink = `upi://pay?pa=${upiPayee}&pn=${encodeURIComponent(upiName)}&am=${orderTotalInRupees.toFixed(2)}&tn=${order?.id}&cu=INR`;
-  // Generate QR Code URL using QR Server public API
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiLink)}`;
 
   // SUCCESS Screen: AI Auto-Approved Payment
   if (ocrSuccess && confirmedOrder) {
@@ -280,12 +289,18 @@ function UpiCheckoutContent() {
         </div>
 
         {/* QR Code Container */}
-        <div className="bg-white border border-outline-variant/20 rounded-2xl p-6 flex flex-col items-center shadow-sm">
-          <img
-            src={qrCodeUrl}
-            alt="UPI QR Code"
-            className="w-52 h-52 object-contain border border-outline-variant/10 rounded-xl"
-          />
+        <div className="bg-white border border-outline-variant/20 rounded-2xl p-6 flex flex-col items-center shadow-sm min-h-[300px] justify-center">
+          {qrCodeUrl ? (
+            <img
+              src={qrCodeUrl}
+              alt="UPI QR Code"
+              className="w-52 h-52 object-contain border border-outline-variant/10 rounded-xl"
+            />
+          ) : (
+            <div className="w-52 h-52 flex items-center justify-center border border-outline-variant/10 rounded-xl bg-gray-50">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
           <p className="text-[10px] text-on-surface-variant font-bold mt-4 tracking-wide text-center">
             SCAN QR WITH GOOGLE PAY, PHONEPE, OR PAYTM TO PAY
           </p>

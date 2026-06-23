@@ -27,7 +27,7 @@ export async function GET() {
   }
 }
 
-// Admin PUT: Update order status (Pending -> Preparing -> Ready -> Fulfilled)
+// Admin PUT: Update order status or individual order item prep status
 export async function PUT(req: NextRequest) {
   try {
     const user = await getSessionUser();
@@ -35,54 +35,66 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized: Admins only" }, { status: 403 });
     }
 
-    const { id, status } = await req.json();
-    if (!id || !status) {
-      return NextResponse.json({ error: "Order ID and status are required" }, { status: 400 });
-    }
-
-    const validStatuses = ["Pending", "Preparing", "Ready", "Fulfilled", "Cancelled"];
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    const { id, status, itemId, itemStatus } = await req.json();
+    if (!id) {
+      return NextResponse.json({ error: "Order ID is required" }, { status: 400 });
     }
 
     let updatedOrder: Order | null = null;
 
-    await Database.write((db) => {
-      const order = db.orders.find((o) => o.id === id);
-      if (order) {
-        // If transitioning from Pending Verification to Pending (approved), assign token and set verifiedBy
-        if (order.status === "Pending Verification" && status === "Pending") {
-          if (!order.token) {
-            let nextTokenNumber = 1024;
-            const activeTokens = db.orders
-              .map((o) => o.token)
-              .filter((t): t is string => !!t && t.startsWith("#T-"));
-
-            if (activeTokens.length > 0) {
-              const numbers = activeTokens.map((t) => parseInt(t.replace("#T-", ""), 10));
-              nextTokenNumber = Math.max(...numbers) + 1;
-            }
-            order.token = `#T-${nextTokenNumber}`;
-          }
-          order.verifiedBy = "Admin";
-          order.createdAt = new Date().toISOString();
-        }
-
-        // Restore stock if transitioning to Cancelled from any active/pending state
-        if (status === "Cancelled" && order.status !== "Cancelled" && order.status !== "Fulfilled") {
-          for (const orderItem of order.items) {
-            const menuItem = db.menu.find((m) => m.id === orderItem.id);
-            if (menuItem) {
-              menuItem.stock += orderItem.quantity;
-              menuItem.available = true; // reactivate availability badge
-            }
-          }
-        }
-
-        order.status = status as any;
-        updatedOrder = order;
+    if (itemId && itemStatus) {
+      const validItemStatuses = ["Pending", "Preparing", "Completed"];
+      if (!validItemStatuses.includes(itemStatus)) {
+        return NextResponse.json({ error: "Invalid item status" }, { status: 400 });
       }
-    });
+
+      // Update specific item status in parallel category queue
+      updatedOrder = await Database.updateOrderItemStatus(id, itemId, itemStatus);
+    } else if (status) {
+      const validStatuses = ["Pending", "Preparing", "Ready", "Fulfilled", "Cancelled"];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      }
+
+      await Database.write((db) => {
+        const order = db.orders.find((o) => o.id === id);
+        if (order) {
+          // If transitioning from Pending Verification to Pending (approved), assign token and set verifiedBy
+          if (order.status === "Pending Verification" && status === "Pending") {
+            if (!order.token) {
+              let nextTokenNumber = 1024;
+              const activeTokens = db.orders
+                .map((o) => o.token)
+                .filter((t): t is string => !!t && t.startsWith("#T-"));
+
+              if (activeTokens.length > 0) {
+                const numbers = activeTokens.map((t) => parseInt(t.replace("#T-", ""), 10));
+                nextTokenNumber = Math.max(...numbers) + 1;
+              }
+              order.token = `#T-${nextTokenNumber}`;
+            }
+            order.verifiedBy = "Admin";
+            order.createdAt = new Date().toISOString();
+          }
+
+          // Restore stock if transitioning to Cancelled from any active/pending state
+          if (status === "Cancelled" && order.status !== "Cancelled" && order.status !== "Fulfilled") {
+            for (const orderItem of order.items) {
+              const menuItem = db.menu.find((m) => m.id === orderItem.id);
+              if (menuItem) {
+                menuItem.stock += orderItem.quantity;
+                menuItem.available = true; // reactivate availability badge
+              }
+            }
+          }
+
+          order.status = status as any;
+          updatedOrder = order;
+        }
+      });
+    } else {
+      return NextResponse.json({ error: "Either status or itemId/itemStatus is required" }, { status: 400 });
+    }
 
     if (!updatedOrder) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });

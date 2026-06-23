@@ -22,11 +22,11 @@ function SuccessContent() {
 
     const confirmPayment = async () => {
       try {
-        const res = await fetch(`/api/checkout/confirm?session_id=${sessionId}`);
+        const res = await fetch(`/api/checkout/details?session_id=${sessionId}`);
         const data = await res.json();
         
         if (!res.ok) {
-          throw new Error(data.error || "Failed to confirm order");
+          throw new Error(data.error || "Failed to load order details");
         }
 
         setOrder(data.order);

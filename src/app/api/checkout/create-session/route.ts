@@ -11,25 +11,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized: Please log in" }, { status: 401 });
     }
 
-    const { cart } = await req.json(); // cart is an array of { id, quantity }
+    const { cart, paymentMethod } = await req.json(); // cart is an array of { id, quantity, version }
     if (!cart || !Array.isArray(cart) || cart.length === 0) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
-    // Generate a unique UPI payment session reference
-    tempSessionRef = `upi_sess_${Math.random().toString(36).substring(2, 9)}`;
+    // Generate a unique payment session reference
+    tempSessionRef = `${paymentMethod === "wallet" ? "wallet" : "upi"}_sess_${Math.random().toString(36).substring(2, 9)}`;
 
-    // 2. ATOMIC TRANSACTION: Check stock and reserve servings immediately
-    // If stock is insufficient, this throws an error with detailed messages
-    let pendingOrder;
-    try {
-      pendingOrder = await Database.reserveStock(cart, user.id, tempSessionRef);
-    } catch (stockError: any) {
-      return NextResponse.json({ error: stockError.message }, { status: 400 });
+    if (paymentMethod === "wallet") {
+      // ATOMIC TRANSACTION: Check stock, check wallet, deduct wallet balance, and confirm order
+      try {
+        await Database.payWithWallet(cart, user.id, tempSessionRef);
+        return NextResponse.json({ url: `/payment-success?session_id=${tempSessionRef}` });
+      } catch (walletError: any) {
+        return NextResponse.json({ error: walletError.message }, { status: 400 });
+      }
+    } else {
+      // Normal UPI QR Flow: ATOMIC TRANSACTION: Check stock and reserve servings
+      try {
+        await Database.reserveStock(cart, user.id, tempSessionRef);
+        return NextResponse.json({ url: `/checkout-upi?session_id=${tempSessionRef}` });
+      } catch (stockError: any) {
+        return NextResponse.json({ error: stockError.message }, { status: 400 });
+      }
     }
-
-    // 3. Return local UPI payment screen URL
-    return NextResponse.json({ url: `/checkout-upi?session_id=${tempSessionRef}` });
   } catch (error: any) {
     console.error("Session Creation Failed:", error);
 

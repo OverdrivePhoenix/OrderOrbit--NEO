@@ -6,7 +6,8 @@
       "password": "password",
       "name": "Alex Student",
       "role": "student",
-      "department": "Computer Science"
+      "department": "Computer Science",
+      "walletBalance": 50000
     },
     {
       "id": "u_admin_1",
@@ -14,7 +15,8 @@
       "password": "password",
       "name": "Cafeteria Manager",
       "role": "admin",
-      "department": "Main Canteen"
+      "department": "Main Canteen",
+      "walletBalance": 0
     }
   ],
   "menu": [
@@ -26,7 +28,8 @@
       "stock": 10,
       "category": "Breakfast",
       "image": "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?q=80&w=400&auto=format&fit=crop",
-      "available": true
+      "available": true,
+      "version": 1
     },
     {
       "id": "m_2",
@@ -36,7 +39,8 @@
       "stock": 10,
       "category": "Beverages",
       "image": "https://images.unsplash.com/photo-1517701604599-bb29b565090c?q=80&w=400&auto=format&fit=crop",
-      "available": true
+      "available": true,
+      "version": 1
     },
     {
       "id": "m_3",
@@ -46,7 +50,8 @@
       "stock": 15,
       "category": "Lunch",
       "image": "https://images.unsplash.com/photo-1628191139360-408a06476b61?q=80&w=400&auto=format&fit=crop",
-      "available": true
+      "available": true,
+      "version": 1
     },
     {
       "id": "m_4",
@@ -56,7 +61,8 @@
       "stock": 25,
       "category": "Snacks",
       "image": "https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=400&auto=format&fit=crop",
-      "available": true
+      "available": true,
+      "version": 1
     },
     {
       "id": "m_lj45wo0",
@@ -66,7 +72,8 @@
       "stock": 20,
       "category": "Snacks",
       "image": "https://en.wikipedia.org/wiki/Sky",
-      "available": true
+      "available": true,
+      "version": 1
     }
   ],
   "orders": [
