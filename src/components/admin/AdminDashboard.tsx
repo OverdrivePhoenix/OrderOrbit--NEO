@@ -78,7 +78,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleUserAction = async (userId: string, action: "approve" | "reject") => {
+  const handleUserAction = async (userId: string, action: "approve" | "reject" | "suspend" | "unsuspend" | "revoke") => {
     try {
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
@@ -231,6 +231,25 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error("Failed to toggle availability", err);
+    }
+  };
+
+  const handleDeleteMenuItem = async (itemId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this menu item?")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/menu?id=${itemId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchAllData();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to delete item");
+      }
+    } catch (err) {
+      console.error("Failed to delete menu item", err);
     }
   };
 
@@ -908,6 +927,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Active Users */}
+            {/* Active Users */}
             <div className="bg-card text-foreground rounded-2xl border border-border/20 overflow-hidden shadow-sm">
               <div className="px-6 py-4 border-b border-border/10 bg-green-50/20">
                 <h3 className="font-extrabold text-lg text-green-900 flex items-center gap-2">
@@ -924,7 +944,7 @@ export default function AdminDashboard() {
                       <th className="p-4">Role</th>
                       <th className="p-4">Department</th>
                       <th className="p-4">Student ID</th>
-                      <th className="p-4 text-right">Status</th>
+                      <th className="p-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm divide-y divide-outline-variant/10">
@@ -941,10 +961,19 @@ export default function AdminDashboard() {
                         </td>
                         <td className="p-4">{user.department}</td>
                         <td className="p-4 font-mono text-xs">{user.studentId || "N/A"}</td>
-                        <td className="p-4 text-right">
-                          <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-bold">
-                            <span className="h-1.5 w-1.5 rounded-full bg-secondary/150"></span> Active
-                          </span>
+                        <td className="p-4 text-right space-x-2">
+                          <button
+                            onClick={() => handleUserAction(user.id, "suspend")}
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-transform active:scale-95 shadow-sm"
+                          >
+                            Suspend
+                          </button>
+                          <button
+                            onClick={() => handleUserAction(user.id, "revoke")}
+                            className="bg-zinc-600 hover:bg-zinc-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-transform active:scale-95 shadow-sm"
+                          >
+                            Revoke
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -952,6 +981,62 @@ export default function AdminDashboard() {
                       <tr>
                         <td colSpan={6} className="p-6 text-center text-muted-foreground text-sm italic">
                           No active users.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Suspended Users */}
+            <div className="bg-card text-foreground rounded-2xl border border-border/20 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-border/10 bg-red-50/20">
+                <h3 className="font-extrabold text-lg text-red-600 dark:text-red-400 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-red-700">block</span>
+                  Suspended Users ({users.filter(u => u.status === "suspended").length})
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#f7f9ff] text-muted-foreground text-xs font-bold uppercase tracking-wider border-b border-border/20">
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Department</th>
+                      <th className="p-4">Student ID</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-outline-variant/10">
+                    {users.filter(u => u.status === "suspended").map((user) => (
+                      <tr key={user.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="p-4 font-bold">{user.name}</td>
+                        <td className="p-4">{user.email}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-600 dark:text-amber-400 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="p-4">{user.department}</td>
+                        <td className="p-4 font-mono text-xs">{user.studentId || "N/A"}</td>
+                        <td className="p-4 text-right">
+                          <button
+                            onClick={() => handleUserAction(user.id, "unsuspend")}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-transform active:scale-95 shadow-sm"
+                          >
+                            Reactivate
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {users.filter(u => u.status === "suspended").length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-6 text-center text-muted-foreground text-sm italic">
+                          No suspended users.
                         </td>
                       </tr>
                     )}
@@ -1020,12 +1105,20 @@ export default function AdminDashboard() {
                       </button>
                     </div>
 
-                    <button
-                      onClick={() => openEditModal(item)}
-                      className="text-primary font-bold text-xs hover:underline flex items-center gap-1"
-                    >
-                      <span className="material-symbols-outlined text-sm">edit</span> Edit Details
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => openEditModal(item)}
+                        className="text-primary font-bold text-xs hover:underline flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-sm">edit</span> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMenuItem(item.id)}
+                        className="text-rose-600 hover:text-rose-800 font-bold text-xs hover:underline flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span> Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1195,14 +1288,27 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold mb-1">Image URL (Optional)</label>
+                <label className="block text-sm font-bold mb-1">Item Image (Device Upload)</label>
                 <input
-                  type="text"
-                  value={newItemData.image}
-                  onChange={(e) => setNewItemData({ ...newItemData, image: e.target.value })}
-                  className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
-                  placeholder="https://unsplash..."
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setNewItemData({ ...newItemData, image: reader.result as string });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="w-full rounded-xl border border-border/40 p-2 text-sm focus:outline-none focus:border-primary bg-background text-foreground"
                 />
+                {newItemData.image && (
+                  <div className="mt-2 relative w-20 h-20 rounded-xl overflow-hidden border border-border/40">
+                    <img src={newItemData.image} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
 
               <button
@@ -1290,13 +1396,27 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold mb-1">Image URL</label>
+                <label className="block text-sm font-bold mb-1">Item Image (Device Upload)</label>
                 <input
-                  type="text"
-                  value={editItemData.image}
-                  onChange={(e) => setEditItemData({ ...editItemData, image: e.target.value })}
-                  className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setEditItemData({ ...editItemData, image: reader.result as string });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="w-full rounded-xl border border-border/40 p-2 text-sm focus:outline-none focus:border-primary bg-background text-foreground"
                 />
+                {editItemData.image && (
+                  <div className="mt-2 relative w-20 h-20 rounded-xl overflow-hidden border border-border/40">
+                    <img src={editItemData.image} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">

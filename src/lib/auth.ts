@@ -41,7 +41,18 @@ export async function getSessionUser() {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth_token")?.value;
     if (!token) return null;
-    return await verifyToken(token);
+    const verified = await verifyToken(token);
+    if (!verified) return null;
+
+    // Real-time suspension and status check
+    const { Database } = require("@/data/db");
+    const db = await Database.read();
+    const user = db.users.find((u: any) => u.id === verified.id);
+    if (!user || user.status !== "active") {
+      return null;
+    }
+
+    return verified;
   } catch (error) {
     return null;
   }

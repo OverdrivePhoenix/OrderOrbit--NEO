@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { verifyToken } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 
 export const metadata = {
@@ -9,15 +8,8 @@ export const metadata = {
 };
 
 export default async function AdminPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
-
-  if (!token) {
-    redirect("/login");
-  }
-
-  // Decrypt and verify JWT token server-side before sending any HTML/JS payload
-  const user = await verifyToken(token);
+  // Decrypt, verify user and check active status in real-time server-side
+  const user = await getSessionUser();
 
   if (!user || user.role !== "admin") {
     // If authenticated as student, send them to the menu; if staff, send to kitchen; otherwise login

@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { verifyToken } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import StudentMenu from "@/components/menu/StudentMenu";
 
 export const metadata = {
@@ -9,15 +8,8 @@ export const metadata = {
 };
 
 export default async function MenuPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
-
-  if (!token) {
-    redirect("/login");
-  }
-
   // Verify token server-side prior to sending page content or code bundle to client
-  const user = await verifyToken(token);
+  const user = await getSessionUser();
 
   if (!user || user.role !== "student") {
     // If user is admin/staff, redirect to their respective dashboard, otherwise to login

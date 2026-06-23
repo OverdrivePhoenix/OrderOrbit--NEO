@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, writeBatch } from "firebase/firestore";
 import fs from "fs";
 import path from "path";
 import { encrypt, decrypt } from "./encryption";
@@ -29,7 +29,6 @@ try {
       experimentalForceLongPolling: true,
     });
   } catch (e) {
-    const { getFirestore } = require("firebase/firestore");
     firestoreDb = getFirestore(app);
   }
   console.log("Firebase App initialized successfully with projectId:", firebaseConfig.projectId);
@@ -87,7 +86,6 @@ export async function getCredentials(userId: string): Promise<UserCredentials | 
       }
     } catch (error) {
       console.error("Error reading credentials from Firestore:", error);
-      // Fallback to local file if Firestore read fails
     }
   }
 
@@ -125,7 +123,6 @@ export async function saveCredentials(
       return;
     } catch (error) {
       console.error("Error writing credentials to Firestore:", error);
-      // Fallback to local file if Firestore write fails
     }
   }
 
@@ -158,5 +155,53 @@ export async function deleteCredentials(userId: string): Promise<void> {
   if (localDb[userId]) {
     delete localDb[userId];
     writeLocalFallback(localDb);
+  }
+}
+
+/**
+ * Fetches all documents from a Firestore collection.
+ */
+export async function getFirestoreCollection(colName: string): Promise<any[]> {
+  if (!firestoreDb) return [];
+  try {
+    const colRef = collection(firestoreDb, colName);
+    const snapshot = await getDocs(colRef);
+    return snapshot.docs.map((d) => ({ ...d.data(), id: d.id }));
+  } catch (error) {
+    console.error(`Error reading collection ${colName} from Firestore:`, error);
+    return [];
+  }
+}
+
+/**
+ * Syncs an array of items to a Firestore collection, handling additions, updates, and deletions.
+ */
+export async function syncCollectionToFirestore(colName: string, items: any[]): Promise<void> {
+  if (!firestoreDb) return;
+  try {
+    const colRef = collection(firestoreDb, colName);
+    const snapshot = await getDocs(colRef);
+    const existingIds = new Set(snapshot.docs.map((d) => d.id));
+    const currentIds = new Set(items.map((i) => i.id));
+
+    const batch = writeBatch(firestoreDb);
+
+    // Set/update current items
+    for (const item of items) {
+      const docRef = doc(firestoreDb, colName, item.id);
+      batch.set(docRef, item);
+    }
+
+    // Delete items no longer present
+    for (const id of existingIds) {
+      if (!currentIds.has(id)) {
+        const docRef = doc(firestoreDb, colName, id);
+        batch.delete(docRef);
+      }
+    }
+
+    await batch.commit();
+  } catch (error) {
+    console.error(`Error syncing collection ${colName} to Firestore:`, error);
   }
 }

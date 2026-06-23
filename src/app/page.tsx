@@ -1,15 +1,27 @@
 import { HeroScrollDemo } from "@/components/HeroScrollDemo";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import LineWaves from "@/components/LineWaves";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
-      {/* Decorative Background Accents */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-[#ff6b35]/10 blur-[100px]"></div>
-        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] rounded-full bg-[#70f8e8]/10 blur-[100px]"></div>
-      </div>
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col relative overflow-hidden">
+      {/* WebGL LineWaves Canvas Background */}
+      <LineWaves
+        speed={0.3}
+        innerLineCount={32}
+        outerLineCount={36}
+        warpIntensity={1}
+        rotation={-45}
+        edgeFadeWidth={0}
+        colorCycleSpeed={1}
+        brightness={0.2}
+        color1="#ffffff"
+        color2="#ffffff"
+        color3="#ffffff"
+        enableMouseInteraction
+        mouseInfluence={2}
+      />
 
       {/* Header */}
       <header className="relative z-10 max-w-7xl mx-auto w-full px-6 h-20 flex justify-between items-center border-b border-outline-variant/10">

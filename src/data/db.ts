@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { getFirestoreCollection, syncCollectionToFirestore } from "../lib/firebase";
 
 // Global Mutex to synchronize all database operations
 class Mutex {
@@ -144,7 +145,7 @@ export interface User {
   password_hash?: string | null;
   name: string;
   role: "student" | "staff" | "admin";
-  status: "pending" | "approved" | "active";
+  status: "pending" | "approved" | "active" | "suspended";
   department: string;
   studentId?: string;
   // NOTE: activationToken is now stored encrypted in Firestore (or local fallback)
@@ -214,28 +215,80 @@ export interface DatabaseSchema {
 }
 
 export class Database {
-  private static readRaw(): DatabaseSchema {
+  private static async readState(): Promise<DatabaseSchema> {
+    let db: DatabaseSchema = { users: [], menu: [], orders: [], reviews: [], dailySummaries: [] };
+    
+    // 1. Load local fallback DB
     try {
-      const data = fs.readFileSync(DB_FILE_PATH, "utf8");
-      return JSON.parse(data);
+      if (fs.existsSync(DB_FILE_PATH)) {
+        const data = fs.readFileSync(DB_FILE_PATH, "utf8");
+        db = JSON.parse(data);
+      }
     } catch (error) {
       console.error("Failed to read database file:", error);
-      return { users: [], menu: [], orders: [], reviews: [], dailySummaries: [] };
     }
+
+    // 2. Fetch and merge from Firestore
+    try {
+      const firestoreUsers = await getFirestoreCollection("users");
+      const firestoreMenu = await getFirestoreCollection("menu");
+      const firestoreOrders = await getFirestoreCollection("orders");
+      const firestoreReviews = await getFirestoreCollection("reviews");
+      const firestoreDailySummaries = await getFirestoreCollection("dailySummaries");
+
+      const hasFirestoreData =
+        firestoreUsers.length > 0 ||
+        firestoreMenu.length > 0 ||
+        firestoreOrders.length > 0 ||
+        firestoreReviews.length > 0 ||
+        firestoreDailySummaries.length > 0;
+
+      if (hasFirestoreData) {
+        if (firestoreUsers.length > 0) db.users = firestoreUsers;
+        if (firestoreMenu.length > 0) db.menu = firestoreMenu;
+        if (firestoreOrders.length > 0) db.orders = firestoreOrders;
+        if (firestoreReviews.length > 0) db.reviews = firestoreReviews;
+        if (firestoreDailySummaries.length > 0) db.dailySummaries = firestoreDailySummaries;
+      } else {
+        // Seed Firestore if empty
+        console.log("Firestore collections are empty. Seeding with local db.json data...");
+        if (db.users.length > 0) await syncCollectionToFirestore("users", db.users);
+        if (db.menu.length > 0) await syncCollectionToFirestore("menu", db.menu);
+        if (db.orders.length > 0) await syncCollectionToFirestore("orders", db.orders);
+        if (db.reviews.length > 0) await syncCollectionToFirestore("reviews", db.reviews);
+        if (db.dailySummaries.length > 0) await syncCollectionToFirestore("dailySummaries", db.dailySummaries);
+      }
+    } catch (error) {
+      console.error("Failed to read from or sync to Firestore, using local data:", error);
+    }
+
+    return db;
   }
 
-  private static writeRaw(data: DatabaseSchema) {
+  private static async writeState(data: DatabaseSchema): Promise<void> {
+    // 1. Write local fallback
     try {
       fs.writeFileSync(DB_FILE_PATH, JSON.stringify(data, null, 2), "utf8");
     } catch (error) {
       console.error("Failed to write to database file:", error);
+    }
+
+    // 2. Sync to Firestore
+    try {
+      await syncCollectionToFirestore("users", data.users);
+      await syncCollectionToFirestore("menu", data.menu);
+      await syncCollectionToFirestore("orders", data.orders);
+      await syncCollectionToFirestore("reviews", data.reviews);
+      await syncCollectionToFirestore("dailySummaries", data.dailySummaries);
+    } catch (error) {
+      console.error("Failed to sync database to Firestore:", error);
     }
   }
 
   static async read(): Promise<DatabaseSchema> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
 
       // Load orders and wallet balance from cookies (for serverless persistence)
       try {
@@ -277,9 +330,9 @@ export class Database {
   static async write(updater: (db: DatabaseSchema) => void): Promise<DatabaseSchema> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
       updater(db);
-      this.writeRaw(db);
+      await this.writeState(db);
 
       // Update cookies
       try {
@@ -307,7 +360,7 @@ export class Database {
   ): Promise<Order> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
 
       // 1. Verify availability and stock for all items
       for (const cartItem of cartItems) {
@@ -368,7 +421,7 @@ export class Database {
       };
 
       db.orders.push(newOrder);
-      this.writeRaw(db);
+      await this.writeState(db);
       await saveOrdersToCookie(db.orders);
       return newOrder;
     } finally {
@@ -382,7 +435,7 @@ export class Database {
   static async releaseReservedStock(sessionId: string): Promise<void> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
       const order = db.orders.find((o) => o.sessionId === sessionId && (o.status === "Pending Payment" || o.status === "Pending Verification"));
       
       if (!order) return;
@@ -397,7 +450,7 @@ export class Database {
       }
 
       order.status = "Cancelled";
-      this.writeRaw(db);
+      await this.writeState(db);
       await saveOrdersToCookie(db.orders);
     } finally {
       release();
@@ -410,7 +463,7 @@ export class Database {
   static async submitForVerification(sessionId: string, utr: string, screenshotUrl: string): Promise<Order | null> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
       const order = db.orders.find((o) => o.sessionId === sessionId);
       if (!order) return null;
 
@@ -419,7 +472,7 @@ export class Database {
       order.screenshotUrl = screenshotUrl;
       order.verifiedBy = null;
 
-      this.writeRaw(db);
+      await this.writeState(db);
       await saveOrdersToCookie(db.orders);
       return order;
     } finally {
@@ -433,7 +486,7 @@ export class Database {
   static async confirmOrder(sessionId: string, utr: string, verifiedBy: "AI" | "Admin"): Promise<Order | null> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
       const order = db.orders.find((o) => o.sessionId === sessionId);
       
       if (!order) return null;
@@ -445,7 +498,7 @@ export class Database {
       order.verifiedBy = verifiedBy;
       order.createdAt = new Date().toISOString();
       
-      this.writeRaw(db);
+      await this.writeState(db);
       await saveOrdersToCookie(db.orders);
       return order;
     } finally {
@@ -477,7 +530,7 @@ export class Database {
   ): Promise<Order> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
 
       // 1. Verify user exists and check wallet balance
       const user = db.users.find((u) => u.id === userId);
@@ -551,7 +604,7 @@ export class Database {
       };
 
       db.orders.push(newOrder);
-      this.writeRaw(db);
+      await this.writeState(db);
       await saveWalletToCookie(user.id, user.walletBalance);
       await saveOrdersToCookie(db.orders);
       return newOrder;
@@ -566,13 +619,13 @@ export class Database {
   static async topupWallet(userId: string, amount: number): Promise<number> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
       const user = db.users.find((u) => u.id === userId);
       if (!user) {
         throw new Error("User not found");
       }
       user.walletBalance = (user.walletBalance || 0) + amount;
-      this.writeRaw(db);
+      await this.writeState(db);
       await saveWalletToCookie(user.id, user.walletBalance);
       return user.walletBalance;
     } finally {
@@ -591,7 +644,7 @@ export class Database {
   ): Promise<Order | null> {
     const release = await dbMutex.acquire();
     try {
-      const db = this.readRaw();
+      const db = await this.readState();
       const order = db.orders.find((o) => o.id === orderId);
       if (!order) return null;
 
@@ -611,7 +664,7 @@ export class Database {
         }
       }
 
-      this.writeRaw(db);
+      await this.writeState(db);
       await saveOrdersToCookie(db.orders);
       return order;
     } finally {

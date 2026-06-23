@@ -112,3 +112,38 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+// Admin DELETE: Remove item by ID
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getSessionUser();
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized: Admins only" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Item ID is required" }, { status: 400 });
+    }
+
+    let deleted = false;
+    await Database.write((db) => {
+      const idx = db.menu.findIndex((m) => m.id === id);
+      if (idx !== -1) {
+        db.menu.splice(idx, 1);
+        deleted = true;
+      }
+    });
+
+    if (!deleted) {
+      return NextResponse.json({ error: "Menu item not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: "Menu item deleted successfully." });
+  } catch (error) {
+    console.error("Failed to delete menu item:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

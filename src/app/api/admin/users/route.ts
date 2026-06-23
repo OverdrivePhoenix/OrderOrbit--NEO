@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Database } from "@/data/db";
-import { verifyToken } from "@/lib/auth";
-
-// Middleware/Helper to verify Admin role
+import { verifyToken, getSessionUser } from "@/lib/auth";
 async function checkAdmin(req: NextRequest) {
-  const token = req.cookies.get("auth_token")?.value;
-  if (!token) return null;
-  const user = await verifyToken(token);
+  const user = await getSessionUser();
   if (!user || user.role !== "admin") return null;
   return user;
 }
@@ -47,10 +43,8 @@ export async function PATCH(req: NextRequest) {
     const admin = await checkAdmin(req);
     if (!admin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { userId, action } = await req.json();
-    if (!userId || !action || (action !== "approve" && action !== "reject")) {
+    }    const { userId, action } = await req.json();
+    if (!userId || !action || (action !== "approve" && action !== "reject" && action !== "suspend" && action !== "unsuspend" && action !== "revoke")) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
 
@@ -100,8 +94,41 @@ export async function PATCH(req: NextRequest) {
         success: true,
         message: "User registration request rejected and deleted.",
       });
-    }
+    } else if (action === "suspend") {
+      await Database.write((dbData) => {
+        const u = dbData.users.find((x) => x.id === userId);
+        if (u) u.status = "suspended";
+      });
+      return NextResponse.json({
+        success: true,
+        message: "User account suspended successfully.",
+      });
+    } else if (action === "unsuspend") {
+      await Database.write((dbData) => {
+        const u = dbData.users.find((x) => x.id === userId);
+        if (u) u.status = "active";
+      });
+      return NextResponse.json({
+        success: true,
+        message: "User account reactivated successfully.",
+      });
+    } else if (action === "revoke") {
+      // Delete credentials from Firestore/fallback
+      await deleteCredentials(userId);
 
+      await Database.write((dbData) => {
+        const u = dbData.users.find((x) => x.id === userId);
+        if (u) {
+          u.status = "pending";
+          delete u.activationToken;
+          delete u.password_hash;
+        }
+      });
+      return NextResponse.json({
+        success: true,
+        message: "User access revoked successfully.",
+      });
+    }
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
     console.error("Admin Users PATCH error:", error);
