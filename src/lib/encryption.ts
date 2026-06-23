@@ -28,15 +28,13 @@ export function encrypt(text: string): string {
   return `${iv.toString("hex")}:${encrypted}`;
 }
 
-/**
- * Decrypts a ciphertext in the format `ivHex:encryptedHex` using AES-256-CBC.
- */
-export function decrypt(encryptedText: string): string {
-  if (!encryptedText) return "";
+export function decrypt(encryptedText: string): string | null {
+  if (!encryptedText) return null;
   try {
     const parts = encryptedText.split(":");
     if (parts.length !== 2) {
-      throw new Error("Invalid encrypted format: missing IV or ciphertext segment");
+      console.error("Invalid encrypted format: missing IV or ciphertext segment");
+      return null;
     }
     const iv = Buffer.from(parts[0], "hex");
     const encrypted = parts[1];
@@ -47,6 +45,6 @@ export function decrypt(encryptedText: string): string {
     return decrypted;
   } catch (error: any) {
     console.error("Decryption failed:", error.message || error);
-    throw new Error("Failed to decrypt credentials");
+    return null;
   }
 }

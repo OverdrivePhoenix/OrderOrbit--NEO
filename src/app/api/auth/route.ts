@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const passwordHash = credentials?.passwordHash;
 
     const bcrypt = require("bcryptjs");
-    const isPasswordCorrect = passwordHash
+    const isPasswordCorrect = (passwordHash && passwordHash.startsWith("$2"))
       ? await bcrypt.compare(password, passwordHash)
       : false;
 
