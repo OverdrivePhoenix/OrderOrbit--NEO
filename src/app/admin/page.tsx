@@ -20,12 +20,15 @@ export default async function AdminPage() {
   const user = await verifyToken(token);
 
   if (!user || user.role !== "admin") {
-    // If authenticated as student, send them to the menu, otherwise to login
-    if (user && user.role === "student") {
-      redirect("/menu");
-    } else {
-      redirect("/login");
+    // If authenticated as student, send them to the menu; if staff, send to kitchen; otherwise login
+    if (user) {
+      if (user.role === "student") {
+        redirect("/menu");
+      } else if (user.role === "staff") {
+        redirect("/kitchen");
+      }
     }
+    redirect("/login");
   }
 
   // Safe to render Admin interface since role is verified as admin server-side

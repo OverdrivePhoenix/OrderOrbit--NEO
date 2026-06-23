@@ -3,19 +3,41 @@
     {
       "id": "u_student_1",
       "email": "student@college.edu",
-      "password": "password",
+      "password_hash": "$2b$10$FdZ/CSo90rf9QSA8OWOTVussurRKGoet0utocAHhzZCk/E/yterKy",
       "name": "Alex Student",
       "role": "student",
+      "status": "active",
       "department": "Computer Science",
       "walletBalance": 50000
     },
     {
+      "id": "u_staff_1",
+      "email": "staff@college.edu",
+      "password_hash": "$2b$10$FdZ/CSo90rf9QSA8OWOTVussurRKGoet0utocAHhzZCk/E/yterKy",
+      "name": "Kitchen Chef",
+      "role": "staff",
+      "status": "active",
+      "department": "Main Canteen",
+      "walletBalance": 0
+    },
+    {
       "id": "u_admin_1",
       "email": "admin@college.edu",
-      "password": "password",
+      "password_hash": "$2b$10$FdZ/CSo90rf9QSA8OWOTVussurRKGoet0utocAHhzZCk/E/yterKy",
       "name": "Cafeteria Manager",
       "role": "admin",
+      "status": "active",
       "department": "Main Canteen",
+      "walletBalance": 0
+    },
+    {
+      "id": "u_student_eg7m2pk",
+      "email": "jkbsace@gmail.com",
+      "name": "JK",
+      "role": "student",
+      "status": "pending",
+      "department": "CS",
+      "studentId": "25CS65",
       "walletBalance": 0
     }
   ],

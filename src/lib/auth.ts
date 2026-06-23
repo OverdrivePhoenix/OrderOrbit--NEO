@@ -28,7 +28,7 @@ export async function verifyToken(token: string) {
       id: string;
       email: string;
       name: string;
-      role: "student" | "admin";
+      role: "student" | "staff" | "admin";
       department: string;
     };
   } catch (error) {

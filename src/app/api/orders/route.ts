@@ -19,9 +19,13 @@ export async function GET() {
       return NextResponse.json({ orders: studentOrders });
     }
 
-    // Admins see all confirmed orders (exclude pending payment)
-    const confirmedOrders = db.orders.filter((o) => o.status !== "Pending Payment");
-    return NextResponse.json({ orders: confirmedOrders });
+    // Admins and Staff see all confirmed orders (exclude pending payment)
+    if (user.role === "admin" || user.role === "staff") {
+      const confirmedOrders = db.orders.filter((o) => o.status !== "Pending Payment");
+      return NextResponse.json({ orders: confirmedOrders });
+    }
+
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
   }
@@ -31,8 +35,8 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     const user = await getSessionUser();
-    if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized: Admins only" }, { status: 403 });
+    if (!user || (user.role !== "admin" && user.role !== "staff")) {
+      return NextResponse.json({ error: "Unauthorized: Admins or Staff only" }, { status: 403 });
     }
 
     const { id, status, itemId, itemStatus } = await req.json();
@@ -61,6 +65,9 @@ export async function PUT(req: NextRequest) {
         if (order) {
           // If transitioning from Pending Verification to Pending (approved), assign token and set verifiedBy
           if (order.status === "Pending Verification" && status === "Pending") {
+            if (user.role !== "admin") {
+              throw new Error("Only admins can verify manual UPI payments");
+            }
             if (!order.token) {
               let nextTokenNumber = 1024;
               const activeTokens = db.orders
@@ -120,7 +127,8 @@ export async function PUT(req: NextRequest) {
       path: "/",
     });
     return response;
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Failed to update order:", error);
+    return NextResponse.json({ error: error.message || "Failed to update order" }, { status: 500 });
   }
 }

@@ -20,12 +20,15 @@ export default async function MenuPage() {
   const user = await verifyToken(token);
 
   if (!user || user.role !== "student") {
-    // If user is admin, redirect to admin panel, otherwise to login
-    if (user && user.role === "admin") {
-      redirect("/admin");
-    } else {
-      redirect("/login");
+    // If user is admin/staff, redirect to their respective dashboard, otherwise to login
+    if (user) {
+      if (user.role === "admin") {
+        redirect("/admin");
+      } else if (user.role === "staff") {
+        redirect("/kitchen");
+      }
     }
+    redirect("/login");
   }
 
   return <StudentMenu />;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MenuItem, Order, Review, DailySummary } from "@/data/db";
+import { MenuItem, Order, Review, DailySummary, User } from "@/data/db";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -10,7 +10,8 @@ export default function AdminDashboard() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [summaries, setSummaries] = useState<DailySummary[]>([]);
-  const [activeTab, setActiveTab] = useState<"orders" | "inventory" | "ai" | "analytics">("orders");
+  const [users, setUsers] = useState<User[]>([]);
+  const [activeTab, setActiveTab] = useState<"orders" | "inventory" | "users" | "ai" | "analytics">("orders");
 
   // AI loading state
   const [generatingAI, setGeneratingAI] = useState(false);
@@ -65,8 +66,32 @@ export default function AdminDashboard() {
         const summariesData = await summariesRes.json();
         setSummaries(summariesData.summaries || []);
       }
+
+      const usersRes = await fetch("/api/admin/users");
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setUsers(usersData.users || []);
+      }
     } catch (err) {
       console.error("Failed to load dashboard data", err);
+    }
+  };
+
+  const handleUserAction = async (userId: string, action: "approve" | "reject") => {
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, action }),
+      });
+      if (res.ok) {
+        fetchAllData();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Action failed");
+      }
+    } catch (err) {
+      console.error(`Failed to ${action} user`, err);
     }
   };
 
@@ -355,6 +380,7 @@ export default function AdminDashboard() {
           {[
             { id: "orders", label: "Fulfillment Queue", icon: "receipt_long" },
             { id: "inventory", label: "Manage Inventory", icon: "inventory_2" },
+            { id: "users", label: "User Onboarding", icon: "group_add" },
             { id: "analytics", label: "Telemetry & Analytics", icon: "monitoring" },
             { id: "ai", label: "AI Kitchen Insights", icon: "psychology" },
           ].map((tab) => (
@@ -726,6 +752,202 @@ export default function AdminDashboard() {
                       <tr>
                         <td colSpan={6} className="p-8 text-center text-on-surface-variant text-sm">
                           No orders at Verification or Pickup desk.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "users" && (
+          <section className="space-y-6">
+            <div>
+              <h2 className="font-extrabold text-2xl">User Onboarding & RBAC Management</h2>
+              <p className="text-on-surface-variant text-sm mt-1">
+                Review registration requests, approve new accounts, and retrieve activation tokens.
+              </p>
+            </div>
+
+            {/* Pending Requests */}
+            <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="px-6 py-4 border-b border-outline-variant/10 bg-amber-50/20">
+                <h3 className="font-extrabold text-lg text-amber-900 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-700">pending_actions</span>
+                  Pending Registration Requests ({users.filter(u => u.status === "pending").length})
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Department</th>
+                      <th className="p-4">Student ID</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-outline-variant/10">
+                    {users.filter(u => u.status === "pending").map((user) => (
+                      <tr key={user.id} className="hover:bg-surface-container/20 transition-colors">
+                        <td className="p-4 font-bold">{user.name}</td>
+                        <td className="p-4">{user.email}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="p-4">{user.department}</td>
+                        <td className="p-4 font-mono text-xs">{user.studentId || "N/A"}</td>
+                        <td className="p-4 text-right space-x-2">
+                          <button
+                            onClick={() => handleUserAction(user.id, "approve")}
+                            className="bg-primary hover:bg-surface-tint text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-transform active:scale-95 shadow-sm"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleUserAction(user.id, "reject")}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-transform active:scale-95 shadow-sm"
+                          >
+                            Reject
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {users.filter(u => u.status === "pending").length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-6 text-center text-on-surface-variant text-sm italic">
+                          No pending registration requests.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Approved & Awaiting Activation */}
+            <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-outline-variant/10 bg-blue-50/20">
+                <h3 className="font-extrabold text-lg text-blue-900 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-700">vpn_key</span>
+                  Approved Accounts (Awaiting Activation - Share Tokens) ({users.filter(u => u.status === "approved").length})
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Department</th>
+                      <th className="p-4">Activation Token</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-outline-variant/10">
+                    {users.filter(u => u.status === "approved").map((user) => (
+                      <tr key={user.id} className="hover:bg-surface-container/20 transition-colors">
+                        <td className="p-4 font-bold">{user.name}</td>
+                        <td className="p-4">{user.email}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="p-4">{user.department}</td>
+                        <td className="p-4 font-mono text-xs">
+                          <div className="flex items-center gap-2">
+                            <code className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded border border-slate-200 font-mono font-bold text-xs select-all">
+                              {user.activationToken}
+                            </code>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(user.activationToken || "");
+                              }}
+                              className="text-primary hover:underline text-xs flex items-center gap-0.5 font-bold"
+                            >
+                              <span className="material-symbols-outlined text-xs">content_copy</span> Copy
+                            </button>
+                          </div>
+                        </td>
+                        <td className="p-4 text-right">
+                          <button
+                            onClick={() => handleUserAction(user.id, "reject")}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-transform active:scale-95 shadow-sm"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {users.filter(u => u.status === "approved").length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-6 text-center text-on-surface-variant text-sm italic">
+                          No approved users waiting for activation.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Active Users */}
+            <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-outline-variant/10 bg-green-50/20">
+                <h3 className="font-extrabold text-lg text-green-900 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-green-700">group</span>
+                  Active Users ({users.filter(u => u.status === "active").length})
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Department</th>
+                      <th className="p-4">Student ID</th>
+                      <th className="p-4 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-outline-variant/10">
+                    {users.filter(u => u.status === "active").map((user) => (
+                      <tr key={user.id} className="hover:bg-surface-container/20 transition-colors">
+                        <td className="p-4 font-bold">{user.name}</td>
+                        <td className="p-4">{user.email}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="p-4">{user.department}</td>
+                        <td className="p-4 font-mono text-xs">{user.studentId || "N/A"}</td>
+                        <td className="p-4 text-right">
+                          <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-bold">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Active
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {users.filter(u => u.status === "active").length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-6 text-center text-on-surface-variant text-sm italic">
+                          No active users.
                         </td>
                       </tr>
                     )}

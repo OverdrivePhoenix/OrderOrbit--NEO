@@ -81,10 +81,13 @@ async function saveWalletToCookie(userId: string, balance: number) {
 export interface User {
   id: string;
   email: string;
-  password?: string;
+  password_hash?: string | null;
   name: string;
-  role: "student" | "admin";
+  role: "student" | "staff" | "admin";
+  status: "pending" | "approved" | "active";
   department: string;
+  studentId?: string;
+  activationToken?: string | null;
   walletBalance?: number; // In paise (Campus credits)
 }
 

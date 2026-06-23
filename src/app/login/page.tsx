@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<"student" | "admin">("student");
+  const [role, setRole] = useState<"student" | "staff" | "admin">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -39,12 +39,22 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 403 && data.code === "ACCOUNT_PENDING") {
+          router.push("/pending-approval");
+          return;
+        }
+        if (res.status === 403 && data.code === "ACCOUNT_APPROVED") {
+          router.push(`/activate?email=${encodeURIComponent(email)}`);
+          return;
+        }
         throw new Error(data.error || "Login failed");
       }
 
       // Redirect depending on user's role returned by API
       if (data.user.role === "admin") {
         router.push("/admin");
+      } else if (data.user.role === "staff") {
+        router.push("/kitchen");
       } else {
         router.push("/menu");
       }
@@ -55,16 +65,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleFillDemo = () => {
-    if (role === "student") {
-      setEmail("student@college.edu");
-      setPassword("password");
-    } else {
-      setEmail("admin@college.edu");
-      setPassword("password");
-    }
-    setError("");
-  };
 
   const handleGuestLogin = async () => {
     setLoading(true);
@@ -115,7 +115,7 @@ export default function LoginPage() {
             <button
               onClick={() => setRole("student")}
               aria-selected={role === "student"}
-              className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-all ${
+              className={`flex-1 py-2.5 font-bold text-xs rounded-lg transition-all ${
                 role === "student"
                   ? "bg-white shadow-sm text-primary"
                   : "text-on-surface-variant hover:text-on-surface"
@@ -124,15 +124,26 @@ export default function LoginPage() {
               Student
             </button>
             <button
+              onClick={() => setRole("staff")}
+              aria-selected={role === "staff"}
+              className={`flex-1 py-2.5 font-bold text-xs rounded-lg transition-all ${
+                role === "staff"
+                  ? "bg-white shadow-sm text-primary"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              Kitchen Staff
+            </button>
+            <button
               onClick={() => setRole("admin")}
               aria-selected={role === "admin"}
-              className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-all ${
+              className={`flex-1 py-2.5 font-bold text-xs rounded-lg transition-all ${
                 role === "admin"
                   ? "bg-white shadow-sm text-primary"
                   : "text-on-surface-variant hover:text-on-surface"
               }`}
             >
-              Staff / Admin
+              Admin
             </button>
           </div>
 
@@ -158,7 +169,13 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-outline-variant/40 bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all"
-                  placeholder={role === "student" ? "student@college.edu" : "admin@college.edu"}
+                  placeholder={
+                    role === "student"
+                      ? "student@college.edu"
+                      : role === "staff"
+                      ? "staff@college.edu"
+                      : "admin@college.edu"
+                  }
                 />
               </div>
             </div>
@@ -191,16 +208,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-1">
-              <button
-                type="button"
-                onClick={handleFillDemo}
-                className="text-primary text-xs font-bold hover:underline transition-all flex items-center gap-1"
-              >
-                <span className="material-symbols-outlined text-xs">bolt</span>
-                Autofill demo credentials
-              </button>
-            </div>
 
             <button
               type="submit"
@@ -208,7 +215,7 @@ export default function LoginPage() {
               className="w-full bg-primary hover:bg-surface-tint text-white font-bold h-12 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 mt-6"
             >
               <span className="material-symbols-outlined text-[20px]">login</span>
-              {loading ? "Verifying..." : `Sign In as ${role === "student" ? "Student" : "Admin"}`}
+              {loading ? "Verifying..." : `Sign In as ${role === "student" ? "Student" : role === "staff" ? "Staff" : "Admin"}`}
             </button>
           </form>
 
@@ -226,6 +233,27 @@ export default function LoginPage() {
             <span className="material-symbols-outlined text-[20px]">person</span>
             Guest Access (Student Role)
           </button>
+
+          <div className="flex flex-col gap-2 mt-6 text-center w-full border-t border-outline-variant/10 pt-4">
+            <p className="text-xs text-on-surface-variant">
+              Need an account?{" "}
+              <button
+                onClick={() => router.push("/register")}
+                className="text-primary font-bold hover:underline"
+              >
+                Register
+              </button>
+            </p>
+            <p className="text-xs text-on-surface-variant">
+              Received activation token?{" "}
+              <button
+                onClick={() => router.push("/activate")}
+                className="text-primary font-bold hover:underline"
+              >
+                Activate Account
+              </button>
+            </p>
+          </div>
         </div>
       </main>
     </div>

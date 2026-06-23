@@ -15,10 +15,37 @@ export async function POST(req: NextRequest) {
 
     const db = await Database.read();
     const user = db.users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+      (u) => u.email.toLowerCase() === email.toLowerCase()
     );
 
     if (!user) {
+      return NextResponse.json(
+        { error: "Invalid email or password" },
+        { status: 401 }
+      );
+    }
+
+    if (user.status === "pending") {
+      return NextResponse.json(
+        { error: "Your account is pending admin approval.", code: "ACCOUNT_PENDING" },
+        { status: 403 }
+      );
+    }
+
+    if (user.status === "approved") {
+      return NextResponse.json(
+        { error: "Your account is approved but not activated yet. Please activate it first.", code: "ACCOUNT_APPROVED" },
+        { status: 403 }
+      );
+    }
+
+    // Verify password using bcryptjs
+    const bcrypt = require("bcryptjs");
+    const isPasswordCorrect = user.password_hash
+      ? await bcrypt.compare(password, user.password_hash)
+      : false;
+
+    if (!isPasswordCorrect) {
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
