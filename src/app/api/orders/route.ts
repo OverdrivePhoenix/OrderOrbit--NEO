@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Database, Order } from "@/data/db";
 import { getSessionUser, verifyOrders, signOrders } from "@/lib/auth";
+import { cookies } from "next/headers";
 
 export async function GET() {
   try {
@@ -16,7 +17,39 @@ export async function GET() {
       const studentOrders = db.orders.filter(
         (o) => o.userId === user.id && o.status !== "Pending Payment"
       );
-      return NextResponse.json({ orders: studentOrders });
+
+      // Fallback/merge with cookie orders to support Vercel persistence
+      const cookieStore = await cookies();
+      const ordersToken = cookieStore.get("orbit_orders")?.value;
+      const cookieOrders = ordersToken ? await verifyOrders(ordersToken) : [];
+
+      // Merge unique orders by id (cookie has priority for latest status updates in serverless)
+      const allOrdersMap = new Map<string, Order>();
+      cookieOrders.forEach((o) => {
+        if (o.userId === user.id && o.status !== "Pending Payment") {
+          allOrdersMap.set(o.id, o);
+        }
+      });
+      studentOrders.forEach((o) => {
+        allOrdersMap.set(o.id, o);
+      });
+
+      const mergedOrders = Array.from(allOrdersMap.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      // Save the merged, sorted orders back to the cookie to sync any backend status updates
+      const ordersToSave = mergedOrders.slice(0, 20);
+      const newToken = await signOrders(ordersToSave);
+      cookieStore.set("orbit_orders", newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24, // 24 hours
+        path: "/",
+      });
+
+      return NextResponse.json({ orders: mergedOrders });
     }
 
     // Admins and Staff see all confirmed orders (exclude pending payment)
@@ -27,6 +60,7 @@ export async function GET() {
 
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } catch (error) {
+    console.error("Failed to fetch orders:", error);
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
   }
 }
@@ -140,13 +174,31 @@ export async function DELETE() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // 1. Clear from database file
     await Database.write((db) => {
       db.orders = db.orders.filter(
         (o) => !(o.userId === user.id && (o.status === "Fulfilled" || o.status === "Cancelled"))
       );
     });
 
-    return NextResponse.json({ success: true });
+    // 2. Clear from cookie storage
+    const cookieStore = await cookies();
+    const ordersToken = cookieStore.get("orbit_orders")?.value;
+    const cookieOrders = ordersToken ? await verifyOrders(ordersToken) : [];
+    const remainingCookieOrders = cookieOrders.filter(
+      (o) => !(o.userId === user.id && (o.status === "Fulfilled" || o.status === "Cancelled"))
+    );
+    const newToken = await signOrders(remainingCookieOrders);
+
+    const response = NextResponse.json({ success: true });
+    response.cookies.set("orbit_orders", newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: "/",
+    });
+    return response;
   } catch (error: any) {
     console.error("Failed to clear order history:", error);
     return NextResponse.json({ error: error.message || "Failed to clear order history" }, { status: 500 });

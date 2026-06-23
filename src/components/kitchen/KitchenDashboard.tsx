@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MenuItem, Order } from "@/data/db";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function KitchenDashboard() {
   const router = useRouter();
@@ -169,31 +170,34 @@ export default function KitchenDashboard() {
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-[#f1f5f9] font-sans flex flex-col">
-      {/* Premium Dark Header */}
-      <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 relative z-10 flex justify-between items-center shadow-lg">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
+      {/* Premium Header */}
+      <header className="bg-card border-b border-border px-6 py-4 relative z-10 flex justify-between items-center shadow-md">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center shadow-md">
             <span className="material-symbols-outlined text-white text-2xl font-fill">restaurant</span>
           </div>
           <div>
-            <h1 className="font-black text-xl tracking-tight bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+            <h1 className="font-black text-xl tracking-tight bg-gradient-to-r from-amber-500 to-orange-600 bg-clip-text text-transparent">
               OrderOrbit Kitchen
             </h1>
-            <p className="text-slate-400 text-xs font-semibold">Live Operational Dashboard</p>
+            <p className="text-muted-foreground text-xs font-semibold">Live Operational Dashboard</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="hidden md:flex flex-col text-right">
-            <span className="text-sm font-bold text-slate-200">Kitchen Staff Panel</span>
+            <span className="text-sm font-bold text-foreground">Kitchen Staff Panel</span>
             <span className="text-xs text-amber-500 flex items-center justify-end gap-1 font-semibold animate-pulse">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span> Live Connection
             </span>
           </div>
+          
+          <ThemeToggle />
+
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-sm font-bold border border-slate-700 transition-all hover:scale-105 active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 bg-card hover:bg-muted text-foreground hover:text-primary rounded-xl text-sm font-bold border border-border transition-all cursor-pointer"
           >
             <span className="material-symbols-outlined text-base">logout</span>
             Logout
@@ -202,13 +206,13 @@ export default function KitchenDashboard() {
       </header>
 
       {/* Tabs Bar */}
-      <div className="flex border-b border-slate-800 bg-slate-950 px-6">
+      <div className="flex border-b border-border bg-card px-6">
         <button
           onClick={() => setActiveTab("prep")}
-          className={`py-4 px-6 font-bold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+          className={`py-4 px-6 font-bold text-sm flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
             activeTab === "prep"
-              ? "border-amber-500 text-amber-400"
-              : "border-transparent text-slate-400 hover:text-slate-200"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <span className="material-symbols-outlined text-lg">queue_play_next</span>
@@ -216,10 +220,10 @@ export default function KitchenDashboard() {
         </button>
         <button
           onClick={() => setActiveTab("stock")}
-          className={`py-4 px-6 font-bold text-sm flex items-center gap-2 border-b-2 transition-colors ${
+          className={`py-4 px-6 font-bold text-sm flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
             activeTab === "stock"
-              ? "border-amber-500 text-amber-400"
-              : "border-transparent text-slate-400 hover:text-slate-200"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           <span className="material-symbols-outlined text-lg">inventory</span>
@@ -231,28 +235,28 @@ export default function KitchenDashboard() {
       <main className="flex-grow p-6">
         {loading ? (
           <div className="h-96 flex flex-col items-center justify-center gap-3">
-            <div className="w-12 h-12 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin"></div>
-            <p className="text-slate-400 text-sm font-semibold">Loading kitchen console...</p>
+            <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
+            <p className="text-muted-foreground text-sm font-semibold">Loading kitchen console...</p>
           </div>
         ) : activeTab === "prep" ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full items-start">
             {/* Prep Queue Panel */}
             <div className="lg:col-span-2 space-y-4">
-              <div className="flex items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
-                <h2 className="text-base font-extrabold flex items-center gap-2 text-amber-400">
+              <div className="flex items-center justify-between bg-muted/40 p-4 rounded-2xl border border-border">
+                <h2 className="text-base font-extrabold flex items-center gap-2 text-primary">
                   <span className="material-symbols-outlined text-xl">soup_kitchen</span>
                   PREPARATION QUEUE (FIFO)
                 </h2>
-                <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-bold border border-amber-500/20">
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
                   {prepOrders.length} Cooking
                 </span>
               </div>
 
               {prepOrders.length === 0 ? (
-                <div className="bg-slate-900/30 border border-slate-800/80 rounded-2xl p-12 text-center flex flex-col items-center justify-center">
-                  <span className="material-symbols-outlined text-slate-600 text-5xl mb-3">cooking</span>
-                  <h3 className="text-slate-300 font-bold text-lg mb-1">Queue is empty!</h3>
-                  <p className="text-slate-500 text-sm max-w-sm leading-relaxed">
+                <div className="bg-muted/20 border border-border rounded-2xl p-12 text-center flex flex-col items-center justify-center">
+                  <span className="material-symbols-outlined text-muted-foreground text-5xl mb-3">cooking</span>
+                  <h3 className="text-foreground font-bold text-lg mb-1">Queue is empty!</h3>
+                  <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
                     Fresh orders will appear here automatically with a sound alert. Time to relax!
                   </p>
                 </div>
@@ -267,33 +271,33 @@ export default function KitchenDashboard() {
                     return (
                       <div
                         key={order.id}
-                        className={`bg-slate-900 border rounded-2xl p-5 shadow-lg flex flex-col justify-between transition-all hover:border-slate-700 ${
-                          isUrgent ? "border-rose-500/40 ring-1 ring-rose-500/20 bg-rose-950/5" : "border-slate-800"
+                        className={`bg-card border rounded-2xl p-5 shadow-md flex flex-col justify-between transition-all hover:border-primary/50 ${
+                          isUrgent ? "border-rose-500/40 ring-1 ring-rose-500/20 bg-rose-500/5" : "border-border"
                         }`}
                       >
                         {/* Order Header */}
                         <div>
                           <div className="flex justify-between items-start mb-3">
                             <div>
-                              <span className="text-lg font-black text-white tracking-wider">
+                              <span className="text-lg font-black text-foreground tracking-wider">
                                 {order.token || "#NO-TOKEN"}
                               </span>
-                              <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                              <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
                                 ID: {order.id.slice(6)}
                               </div>
                             </div>
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${
                                 order.status === "Pending"
-                                  ? "bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse"
-                                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                  ? "bg-primary/10 text-primary border-primary/20 animate-pulse"
+                                  : "bg-amber-500/10 text-amber-500 border-amber-500/20"
                               }`}
                             >
                               {order.status}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-1.5 mb-4 text-xs font-semibold text-slate-400">
+                          <div className="flex items-center gap-1.5 mb-4 text-xs font-semibold text-muted-foreground">
                             <span className="material-symbols-outlined text-sm">schedule</span>
                             <span className={isUrgent ? "text-rose-400 font-bold" : ""}>
                               {elapsed === 0 ? "Just now" : `${elapsed} mins ago`}
@@ -306,7 +310,7 @@ export default function KitchenDashboard() {
                           </div>
 
                           {/* Items List */}
-                          <div className="space-y-2 border-t border-b border-slate-800/80 py-3 mb-4">
+                          <div className="space-y-2 border-t border-b border-border py-3 mb-4">
                             {order.items.map((item) => (
                               <div
                                 key={item.id}
@@ -316,7 +320,7 @@ export default function KitchenDashboard() {
                                   <span className="font-extrabold text-amber-500 bg-amber-500/10 h-6 w-6 rounded flex items-center justify-center text-xs">
                                     {item.quantity}x
                                   </span>
-                                  <span className="font-bold text-slate-200">{item.name}</span>
+                                  <span className="font-bold text-foreground">{item.name}</span>
                                 </div>
 
                                 {/* Parallel Prep Item controls */}
@@ -333,12 +337,12 @@ export default function KitchenDashboard() {
                                           : "Pending"
                                       )
                                     }
-                                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-colors ${
+                                    className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
                                       item.prepStatus === "Completed"
-                                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                        ? "bg-green-500/20 text-green-500 border border-green-500/30"
                                         : item.prepStatus === "Preparing"
-                                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                                        : "bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700"
+                                        ? "bg-amber-500/20 text-amber-500 border border-amber-500/30"
+                                        : "bg-muted text-muted-foreground hover:text-foreground border border-border"
                                     }`}
                                   >
                                     {item.prepStatus || "Pending"}
@@ -354,7 +358,7 @@ export default function KitchenDashboard() {
                           {order.status === "Pending" ? (
                             <button
                               onClick={() => handleUpdateOrderStatus(order.id, "Preparing")}
-                              className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1"
+                              className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-900 dark:text-slate-950 text-xs font-black rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1 cursor-pointer"
                             >
                               <span className="material-symbols-outlined text-base">restaurant</span>
                               Start Cooking
@@ -362,7 +366,7 @@ export default function KitchenDashboard() {
                           ) : (
                             <button
                               onClick={() => handleUpdateOrderStatus(order.id, "Ready")}
-                              className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1"
+                              className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-slate-900 dark:text-slate-950 text-xs font-black rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1 cursor-pointer"
                             >
                               <span className="material-symbols-outlined text-base">notifications_active</span>
                               Mark Ready
@@ -378,21 +382,21 @@ export default function KitchenDashboard() {
 
             {/* Pickup Desk Panel */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
-                <h2 className="text-base font-extrabold flex items-center gap-2 text-green-400">
+              <div className="flex items-center justify-between bg-muted/40 p-4 rounded-2xl border border-border">
+                <h2 className="text-base font-extrabold flex items-center gap-2 text-secondary">
                   <span className="material-symbols-outlined text-xl">countertops</span>
                   PICKUP DESK
                 </h2>
-                <span className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20">
+                <span className="px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold border border-secondary/20">
                   {readyOrders.length} Ready
                 </span>
               </div>
 
               {readyOrders.length === 0 ? (
-                <div className="bg-slate-900/20 border border-slate-800/60 rounded-2xl p-8 text-center flex flex-col items-center justify-center text-slate-500">
-                  <span className="material-symbols-outlined text-slate-600 text-4xl mb-2">hail</span>
-                  <h4 className="text-slate-400 font-bold text-sm">No items ready for pickup</h4>
-                  <p className="text-xs text-slate-500 max-w-xs mt-1 leading-relaxed">
+                <div className="bg-muted/20 border border-border rounded-2xl p-8 text-center flex flex-col items-center justify-center text-muted-foreground">
+                  <span className="material-symbols-outlined text-muted-foreground text-4xl mb-2">hail</span>
+                  <h4 className="text-foreground font-bold text-sm">No items ready for pickup</h4>
+                  <p className="text-xs text-muted-foreground max-w-xs mt-1 leading-relaxed">
                     Finish cooking orders in the preparation queue to move them here.
                   </p>
                 </div>
@@ -401,20 +405,20 @@ export default function KitchenDashboard() {
                   {readyOrders.map((order) => (
                     <div
                       key={order.id}
-                      className="bg-slate-900/80 border border-green-500/20 rounded-2xl p-4 shadow-md flex items-center justify-between hover:border-green-500/40 transition-colors"
+                      className="bg-card border border-secondary/20 rounded-2xl p-4 shadow-md flex items-center justify-between hover:border-secondary/40 transition-colors"
                     >
                       <div className="space-y-1">
-                        <span className="text-base font-black text-green-400 tracking-wider">
+                        <span className="text-base font-black text-secondary tracking-wider">
                           {order.token || "#T-XXXX"}
                         </span>
-                        <div className="text-xs text-slate-300 font-bold">
+                        <div className="text-xs text-muted-foreground font-bold">
                           {order.items.map((i) => `${i.quantity}x ${i.name}`).join(", ")}
                         </div>
                       </div>
 
                       <button
                         onClick={() => handleUpdateOrderStatus(order.id, "Fulfilled")}
-                        className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1"
+                        className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-slate-900 dark:text-slate-950 text-xs font-black rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1 cursor-pointer"
                       >
                         <span className="material-symbols-outlined text-sm">check_circle</span>
                         Deliver
@@ -428,13 +432,13 @@ export default function KitchenDashboard() {
         ) : (
           /* Stock Control Panel */
           <div className="space-y-6">
-            <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800 flex items-center justify-between">
+            <div className="bg-muted/40 p-4 rounded-2xl border border-border flex items-center justify-between">
               <div>
-                <h2 className="text-base font-extrabold flex items-center gap-2 text-amber-400">
+                <h2 className="text-base font-extrabold flex items-center gap-2 text-primary">
                   <span className="material-symbols-outlined text-xl">inventory_2</span>
                   STOCK & AVAILABILITY CONTROL
                 </h2>
-                <p className="text-slate-400 text-xs mt-0.5">Toggle sold-out statuses and update servings remaining.</p>
+                <p className="text-muted-foreground text-xs mt-0.5">Toggle sold-out statuses and update servings remaining.</p>
               </div>
             </div>
 
@@ -442,14 +446,14 @@ export default function KitchenDashboard() {
               {menu.map((item) => (
                 <div
                   key={item.id}
-                  className={`bg-slate-900 border rounded-2xl p-5 shadow-lg flex flex-col justify-between transition-all hover:border-slate-800 ${
-                    item.available ? "border-slate-800" : "border-slate-800/40 bg-slate-950/20 opacity-75"
+                  className={`bg-card border rounded-2xl p-5 shadow-md flex flex-col justify-between transition-all hover:border-border/80 ${
+                    item.available ? "border-border" : "border-border/40 bg-muted/20 opacity-75"
                   }`}
                 >
                   <div className="flex gap-4">
                     {/* Item Image */}
                     {item.image && (
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-800 flex-shrink-0 border border-slate-700/50">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted flex-shrink-0 border border-border">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={item.image}
@@ -461,42 +465,42 @@ export default function KitchenDashboard() {
 
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-slate-200 text-sm leading-tight">{item.name}</h3>
+                        <h3 className="font-bold text-foreground text-sm leading-tight">{item.name}</h3>
                         <span
                           className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border tracking-wider ${
                             item.available
-                              ? "bg-green-500/10 text-green-400 border-green-500/20"
-                              : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                              ? "bg-green-500/10 text-green-500 border-green-500/20"
+                              : "bg-rose-500/10 text-rose-500 border-rose-500/20"
                           }`}
                         >
                           {item.available ? "In Stock" : "Sold Out"}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 font-semibold">{item.category}</p>
-                      <p className="text-xs font-bold text-amber-500">₹{(item.price / 100).toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground font-semibold">{item.category}</p>
+                      <p className="text-xs font-bold text-primary">₹{(item.price / 100).toFixed(2)}</p>
                     </div>
                   </div>
 
                   {/* Stock adjust & Kill-switch */}
-                  <div className="mt-5 border-t border-slate-800/80 pt-4 flex items-center justify-between gap-4">
+                  <div className="mt-5 border-t border-border pt-4 flex items-center justify-between gap-4">
                     {/* Stock Counter */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Stock:</span>
-                      <div className="flex items-center bg-slate-950 rounded-xl border border-slate-850 p-1">
+                      <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Stock:</span>
+                      <div className="flex items-center bg-muted rounded-xl border border-border p-1">
                         <button
                           disabled={updatingItemId === item.id || item.stock === 0}
                           onClick={() => handleStockAdjust(item, -1)}
-                          className="w-7 h-7 bg-slate-850 hover:bg-slate-800 rounded-lg text-slate-300 font-extrabold flex items-center justify-center transition-all disabled:opacity-50 text-sm"
+                          className="w-7 h-7 bg-card hover:bg-muted rounded-lg text-foreground font-extrabold flex items-center justify-center transition-all disabled:opacity-50 text-sm cursor-pointer"
                         >
                           -
                         </button>
-                        <span className="w-8 text-center text-xs font-mono font-bold text-slate-200">
+                        <span className="w-8 text-center text-xs font-mono font-bold text-foreground">
                           {item.stock}
                         </span>
                         <button
                           disabled={updatingItemId === item.id}
                           onClick={() => handleStockAdjust(item, 1)}
-                          className="w-7 h-7 bg-slate-850 hover:bg-slate-800 rounded-lg text-slate-300 font-extrabold flex items-center justify-center transition-all disabled:opacity-50 text-sm"
+                          className="w-7 h-7 bg-card hover:bg-muted rounded-lg text-foreground font-extrabold flex items-center justify-center transition-all disabled:opacity-50 text-sm cursor-pointer"
                         >
                           +
                         </button>
@@ -507,10 +511,10 @@ export default function KitchenDashboard() {
                     <button
                       onClick={() => handleToggleAvailable(item)}
                       disabled={updatingItemId === item.id}
-                      className={`px-3 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-sm ${
+                      className={`px-3 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer ${
                         item.available
-                          ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
-                          : "bg-green-500 hover:bg-green-600 text-slate-950"
+                          ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20"
+                          : "bg-green-500 hover:bg-green-600 text-slate-900 dark:text-slate-950"
                       }`}
                     >
                       {item.available ? "Mark Sold Out" : "Mark Available"}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function ActivateForm() {
   const router = useRouter();
@@ -70,24 +71,24 @@ function ActivateForm() {
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_32px_rgba(7,29,46,0.08)] p-8 md:p-10 flex flex-col items-center">
+    <div className="bg-card/85 backdrop-blur-md rounded-2xl border border-border shadow-[0_8px_32px_rgba(7,29,46,0.08)] p-8 md:p-10 flex flex-col items-center">
       {/* Logo Section */}
       <div className="mb-6 flex flex-col items-center text-center">
-        <div className="w-20 h-20 rounded-full shadow-md bg-white p-2 flex items-center justify-center mb-3 border border-outline-variant/20">
+        <div className="w-20 h-20 rounded-full shadow-md bg-card p-2 flex items-center justify-center mb-3 border border-border">
           <span className="material-symbols-outlined text-primary text-4xl font-fill">verified_user</span>
         </div>
         <h1 className="font-extrabold text-2xl text-primary tracking-tight">Activate Account</h1>
-        <p className="text-on-surface-variant text-xs mt-1">Submit your activation token to set your password.</p>
+        <p className="text-muted-foreground text-xs mt-1">Submit your activation token to set your password.</p>
       </div>
 
       {error && (
-        <div className="w-full p-3 mb-4 rounded-xl bg-tertiary-container/20 border border-tertiary-container text-tertiary text-xs font-semibold text-center leading-tight">
+        <div className="w-full p-3 mb-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold text-center leading-tight">
           {error}
         </div>
       )}
 
       {successMsg && (
-        <div className="w-full p-3 mb-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-semibold text-center leading-tight">
+        <div className="w-full p-3 mb-4 rounded-xl bg-green-50/20 border border-green-200 text-green-700 text-xs font-semibold text-center leading-tight">
           {successMsg}
         </div>
       )}
@@ -95,11 +96,11 @@ function ActivateForm() {
       {/* Activation Form */}
       <form onSubmit={handleActivateSubmit} className="w-full space-y-4">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">
+          <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
             Institutional Email
           </label>
           <div className="relative group">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors text-lg">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
               mail
             </span>
             <input
@@ -107,18 +108,18 @@ function ActivateForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-outline-variant/40 bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all"
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all"
               placeholder="student@college.edu or staff@college.edu"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">
+          <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
             Activation Token
           </label>
           <div className="relative group">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors text-lg">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
               key
             </span>
             <input
@@ -126,18 +127,18 @@ function ActivateForm() {
               required
               value={activationToken}
               onChange={(e) => setActivationToken(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-outline-variant/40 bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all uppercase"
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all uppercase"
               placeholder="ACTIV-XXXX"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">
+          <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
             Set Password
           </label>
           <div className="relative group">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors text-lg">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
               lock
             </span>
             <input
@@ -145,13 +146,13 @@ function ActivateForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-11 pr-11 py-2.5 rounded-xl border border-outline-variant/40 bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all"
+              className="w-full pl-11 pr-11 py-2.5 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all"
               placeholder="Min 6 characters"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <span className="material-symbols-outlined text-lg">
                 {showPassword ? "visibility_off" : "visibility"}
@@ -161,11 +162,11 @@ function ActivateForm() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">
+          <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
             Confirm Password
           </label>
           <div className="relative group">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors text-lg">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
               lock
             </span>
             <input
@@ -173,7 +174,7 @@ function ActivateForm() {
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-outline-variant/40 bg-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all"
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all"
               placeholder="Re-enter password"
             />
           </div>
@@ -182,19 +183,19 @@ function ActivateForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-primary hover:bg-surface-tint text-white font-bold h-12 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 mt-6"
+          className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold h-12 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 disabled:opacity-50 mt-6 cursor-pointer"
         >
           <span className="material-symbols-outlined text-[20px]">task_alt</span>
           {loading ? "Activating..." : "Activate & Register Password"}
         </button>
       </form>
 
-      <div className="flex flex-col gap-2 mt-6 text-center w-full border-t border-outline-variant/10 pt-4">
-        <p className="text-xs text-on-surface-variant">
+      <div className="flex flex-col gap-2 mt-6 text-center w-full border-t border-border pt-4">
+        <p className="text-xs text-muted-foreground">
           Already active or back to login?{" "}
           <button
             onClick={() => router.push("/login")}
-            className="text-primary font-bold hover:underline"
+            className="text-primary font-bold hover:underline cursor-pointer bg-transparent border-none"
           >
             Sign In
           </button>
@@ -206,7 +207,12 @@ function ActivateForm() {
 
 export default function ActivatePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center font-sans text-[#071d2e] relative overflow-hidden bg-[#f7f9ff]">
+    <div className="min-h-screen flex items-center justify-center font-sans text-foreground relative overflow-hidden bg-background">
+      {/* Theme Toggle Positioned in top-right */}
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
       {/* Decorative Background Accents */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
         <div className="absolute -top-[20%] -right-[10%] w-[60%] h-[60%] rounded-full bg-[#ff6b35]/20 blur-[100px]"></div>
@@ -216,7 +222,7 @@ export default function ActivatePage() {
       {/* Main Content Container */}
       <main className="relative z-10 w-full max-w-md px-6 my-8">
         <Suspense fallback={
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-white/50 shadow-md p-8 flex items-center justify-center">
+          <div className="bg-card text-foreground rounded-2xl border border-border shadow-md p-8 flex items-center justify-center">
             <p className="text-sm font-semibold text-primary">Loading activation form...</p>
           </div>
         }>

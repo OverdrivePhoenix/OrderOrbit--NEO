@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Order } from "@/data/db";
 import Link from "next/link";
 import QRCode from "qrcode";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function UpiCheckoutContent() {
   const searchParams = useSearchParams();
@@ -22,7 +23,6 @@ function UpiCheckoutContent() {
   const [ocrError, setOcrError] = useState("");
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
-  const [manualVerificationSubmitting, setManualVerificationSubmitting] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
 
   useEffect(() => {
@@ -145,11 +145,11 @@ function UpiCheckoutContent() {
     return (
       <div className="text-center space-y-4 max-w-sm mx-auto py-8">
         <span className="material-symbols-outlined text-rose-500 text-6xl">error</span>
-        <h2 className="text-xl font-extrabold text-on-surface">Payment Error</h2>
-        <p className="text-on-surface-variant text-sm leading-relaxed">{error}</p>
+        <h2 className="text-xl font-extrabold text-foreground">Payment Error</h2>
+        <p className="text-muted-foreground text-sm leading-relaxed">{error}</p>
         <button
           onClick={() => router.push("/menu")}
-          className="w-full bg-primary hover:bg-surface-tint text-white font-bold py-3 rounded-xl transition-all"
+          className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-3 rounded-xl transition-all cursor-pointer"
         >
           Return to Menu
         </button>
@@ -168,36 +168,36 @@ function UpiCheckoutContent() {
           check_circle
         </span>
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface">AI Auto-Approved!</h2>
-          <p className="text-on-surface-variant text-sm mt-1">
+          <h2 className="text-2xl font-extrabold text-foreground">AI Auto-Approved!</h2>
+          <p className="text-muted-foreground text-sm mt-1">
             Gemini AI verified your screenshot payment amount. Order sent to the kitchen.
           </p>
         </div>
 
-        <div className="bg-surface-container/30 border border-outline-variant/30 rounded-2xl p-6 shadow-inner space-y-4">
+        <div className="bg-muted/30 border border-border rounded-2xl p-6 shadow-inner space-y-4">
           <div>
-            <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
               Pickup Token Code
             </span>
             <div className="text-4xl font-black text-primary mt-1 tracking-tight">
               {confirmedOrder.token}
             </div>
           </div>
-          <div className="border-t border-outline-variant/20 pt-4 flex justify-between text-left text-xs font-semibold text-on-surface-variant">
+          <div className="border-t border-border pt-4 flex justify-between text-left text-xs font-semibold text-muted-foreground">
             <div>
-              <p>UTR Number: <span className="font-bold text-on-surface">{confirmedOrder.utr}</span></p>
+              <p>UTR Number: <span className="font-bold text-foreground">{confirmedOrder.utr}</span></p>
               <p className="mt-1">Verified By: <span className="font-bold text-secondary">Gemini Multimodal AI</span></p>
             </div>
             <div className="text-right">
               <p>Total Paid</p>
-              <p className="text-base font-extrabold text-[#006a62] mt-0.5">₹{orderTotalInRupees.toFixed(2)}</p>
+              <p className="text-base font-extrabold text-secondary mt-0.5">₹{orderTotalInRupees.toFixed(2)}</p>
             </div>
           </div>
         </div>
 
         <Link
           href="/menu"
-          className="inline-block w-full bg-primary hover:bg-surface-tint text-white font-extrabold py-3.5 rounded-xl text-sm shadow-sm transition-all"
+          className="inline-block w-full bg-primary hover:bg-primary/95 text-primary-foreground font-extrabold py-3.5 rounded-xl text-sm shadow-sm transition-all text-center"
         >
           Return to Menu & Track
         </Link>
@@ -213,38 +213,38 @@ function UpiCheckoutContent() {
           pending_actions
         </span>
         <div>
-          <h2 className="text-2xl font-extrabold text-on-surface">Verification Pending</h2>
-          <p className="text-on-surface-variant text-sm mt-1">
+          <h2 className="text-2xl font-extrabold text-foreground">Verification Pending</h2>
+          <p className="text-muted-foreground text-sm mt-1">
             AI couldn't auto-match. Order submitted for manual verification.
           </p>
         </div>
 
-        <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-5 text-left text-xs leading-relaxed space-y-2">
-          <p className="text-amber-800 font-bold">⚠️ Scan Verification Note:</p>
-          <p className="text-amber-700 font-semibold">{ocrError}</p>
-          <p className="text-on-surface-variant">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5 text-left text-xs leading-relaxed space-y-2">
+          <p className="text-amber-600 dark:text-amber-400 font-bold">⚠️ Scan Verification Note:</p>
+          <p className="text-amber-700 dark:text-amber-300 font-semibold">{ocrError}</p>
+          <p className="text-muted-foreground">
             Don't worry! Your order has been submitted to the canteen manager. They will verify your UTR code manually. Check your Orders list on the Menu to monitor verification.
           </p>
         </div>
 
-        <div className="bg-surface-container/30 border border-outline-variant/30 rounded-2xl p-5 space-y-3">
+        <div className="bg-muted/30 border border-border rounded-2xl p-5 space-y-3">
           <div className="flex justify-between text-xs font-semibold">
-            <span className="text-on-surface-variant">Session Reference</span>
-            <span className="font-mono text-on-surface">{confirmedOrder.sessionId}</span>
+            <span className="text-muted-foreground">Session Reference</span>
+            <span className="font-mono text-foreground">{confirmedOrder.sessionId}</span>
           </div>
           <div className="flex justify-between text-xs font-semibold">
-            <span className="text-on-surface-variant">UTR Submitted</span>
-            <span className="font-mono text-on-surface">{confirmedOrder.utr}</span>
+            <span className="text-muted-foreground">UTR Submitted</span>
+            <span className="font-mono text-foreground">{confirmedOrder.utr}</span>
           </div>
           <div className="flex justify-between text-xs font-semibold">
-            <span className="text-on-surface-variant">Total Amount</span>
-            <span className="text-[#006a62] font-bold">₹{orderTotalInRupees.toFixed(2)}</span>
+            <span className="text-muted-foreground">Total Amount</span>
+            <span className="text-secondary font-bold">₹{orderTotalInRupees.toFixed(2)}</span>
           </div>
         </div>
 
         <Link
           href="/menu"
-          className="inline-block w-full bg-primary hover:bg-surface-tint text-white font-extrabold py-3.5 rounded-xl text-sm shadow-sm transition-all"
+          className="inline-block w-full bg-primary hover:bg-primary/95 text-primary-foreground font-extrabold py-3.5 rounded-xl text-sm shadow-sm transition-all text-center"
         >
           Return to Menu & Track
         </Link>
@@ -256,14 +256,14 @@ function UpiCheckoutContent() {
     <div className="w-full space-y-6 relative">
       {/* Scanning Scanner Animation Overlay */}
       {scanning && (
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
+        <div className="absolute inset-0 bg-card/95 backdrop-blur-sm z-50 rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
           <div className="relative w-24 h-24 border-4 border-primary/20 rounded-2xl flex items-center justify-center overflow-hidden">
             {/* Pulsing Scanner line */}
             <div className="absolute top-0 left-0 w-full h-1.5 bg-primary animate-bounce shadow-md"></div>
             <span className="material-symbols-outlined text-primary text-5xl font-fill animate-pulse">image</span>
           </div>
-          <h3 className="font-extrabold text-lg mt-6">Scanning Payment Receipt</h3>
-          <p className="text-on-surface-variant text-xs mt-2 max-w-xs leading-relaxed">
+          <h3 className="font-extrabold text-lg mt-6 text-foreground">Scanning Payment Receipt</h3>
+          <p className="text-muted-foreground text-xs mt-2 max-w-xs leading-relaxed">
             Gemini Multimodal AI is extracting the transaction UTR code, receiver name, and amount details...
           </p>
         </div>
@@ -271,48 +271,48 @@ function UpiCheckoutContent() {
 
       {/* Main Payment Details Form */}
       <div className="space-y-4 text-left">
-        <div className="flex justify-between items-center bg-[#edf4ff] border border-outline-variant/20 p-4 rounded-2xl">
+        <div className="flex justify-between items-center bg-primary/5 border border-border p-4 rounded-2xl">
           <div>
-            <p className="text-[10px] uppercase font-bold text-on-surface-variant">Pre-Order Total</p>
-            <p className="text-2xl font-black text-[#006a62] mt-0.5">₹{orderTotalInRupees.toFixed(2)}</p>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground">Pre-Order Total</p>
+            <p className="text-2xl font-black text-secondary mt-0.5">₹{orderTotalInRupees.toFixed(2)}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase font-bold text-on-surface-variant">Estimated Wait</p>
-            <p className="font-bold text-on-surface mt-0.5">~{order?.items.reduce((max, i) => Math.max(max, 10), 0) || 10} min</p>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground">Estimated Wait</p>
+            <p className="font-bold text-foreground mt-0.5">~{order?.items.reduce((max, i) => Math.max(max, 10), 0) || 10} min</p>
           </div>
         </div>
 
         {/* UPI ID Info */}
-        <div className="text-xs font-semibold text-on-surface-variant text-center bg-gray-50 border border-outline-variant/20 p-3 rounded-xl flex items-center justify-center gap-1.5">
+        <div className="text-xs font-semibold text-muted-foreground text-center bg-muted/40 border border-border p-3 rounded-xl flex items-center justify-center gap-1.5">
           <span className="material-symbols-outlined text-sm text-primary">account_balance_wallet</span>
-          Pay To Canteen UPI: <span className="font-extrabold text-on-surface">{upiPayee}</span>
+          Pay To Canteen UPI: <span className="font-extrabold text-foreground">{upiPayee}</span>
         </div>
 
-        {/* QR Code Container */}
-        <div className="bg-white border border-outline-variant/20 rounded-2xl p-6 flex flex-col items-center shadow-sm min-h-[300px] justify-center">
+        {/* QR Code Container (High-contrast light card for scanners) */}
+        <div className="bg-white border border-border rounded-2xl p-6 flex flex-col items-center shadow-sm min-h-[300px] justify-center text-slate-800">
           {qrCodeUrl ? (
             <img
               src={qrCodeUrl}
               alt="UPI QR Code"
-              className="w-52 h-52 object-contain border border-outline-variant/10 rounded-xl"
+              className="w-52 h-52 object-contain border border-slate-100 rounded-xl"
             />
           ) : (
-            <div className="w-52 h-52 flex items-center justify-center border border-outline-variant/10 rounded-xl bg-gray-50">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-52 h-52 flex items-center justify-center border border-slate-100 rounded-xl bg-slate-50">
+              <div className="w-8 h-8 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
             </div>
           )}
-          <p className="text-[10px] text-on-surface-variant font-bold mt-4 tracking-wide text-center">
+          <p className="text-[10px] text-slate-500 font-bold mt-4 tracking-wide text-center uppercase">
             SCAN QR WITH GOOGLE PAY, PHONEPE, OR PAYTM TO PAY
           </p>
         </div>
 
         {/* File Uploader */}
         <div className="space-y-3">
-          <label className="block text-xs font-extrabold text-on-surface">
+          <label className="block text-xs font-extrabold text-foreground">
             Step 2: Upload Payment Confirmation Screenshot
           </label>
           
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-outline-variant/40 rounded-2xl p-4 bg-gray-50/50 hover:bg-gray-50 transition-colors relative cursor-pointer group">
+          <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl p-4 bg-muted/20 hover:bg-muted/40 transition-colors relative cursor-pointer group">
             <input
               type="file"
               accept="image/*"
@@ -320,18 +320,18 @@ function UpiCheckoutContent() {
               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
             />
             {previewUrl ? (
-              <div className="relative w-full h-44 rounded-xl overflow-hidden border border-outline-variant/20 bg-white flex items-center justify-center">
+              <div className="relative w-full h-44 rounded-xl overflow-hidden border border-border bg-white flex items-center justify-center">
                 <img src={previewUrl} alt="Receipt preview" className="h-full object-contain" />
               </div>
             ) : (
               <div className="text-center py-4 space-y-2">
-                <span className="material-symbols-outlined text-gray-400 text-3xl group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined text-muted-foreground text-3xl group-hover:scale-110 transition-transform">
                   add_photo_alternate
                 </span>
-                <p className="text-xs font-semibold text-on-surface-variant">
+                <p className="text-xs font-semibold text-foreground">
                   Click to upload screenshot
                 </p>
-                <p className="text-[10px] text-gray-400">JPEG, PNG receipt images</p>
+                <p className="text-[10px] text-muted-foreground">JPEG, PNG receipt images</p>
               </div>
             )}
           </div>
@@ -341,10 +341,10 @@ function UpiCheckoutContent() {
         <button
           onClick={handleVerifyWithAI}
           disabled={!file || scanning}
-          className={`w-full font-extrabold py-3.5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 ${
+          className={`w-full font-extrabold py-3.5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer ${
             file
-              ? "bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
           }`}
         >
           <span className="material-symbols-outlined text-[20px]">psychology</span>
@@ -353,7 +353,7 @@ function UpiCheckoutContent() {
 
         <button
           onClick={handleCancelOrder}
-          className="w-full bg-white hover:bg-gray-50 text-on-surface-variant font-semibold py-3 rounded-xl border border-outline-variant/30 text-sm transition-colors active:scale-95"
+          className="w-full bg-card hover:bg-muted text-foreground font-semibold py-3 rounded-xl border border-border text-sm transition-colors active:scale-95 cursor-pointer"
         >
           Cancel Order
         </button>
@@ -364,13 +364,18 @@ function UpiCheckoutContent() {
 
 export default function UpiCheckoutPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-[#f7f9ff]">
-      <main className="w-full max-w-md bg-white/80 backdrop-blur-md border border-white/50 rounded-3xl p-6 md:p-8 shadow-[0_8px_32px_rgba(7,29,46,0.06)] flex flex-col items-center">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-background text-foreground relative">
+      {/* Theme Toggle Positioned in top-right */}
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
+      <main className="w-full max-w-md bg-card/85 backdrop-blur-md border border-border rounded-3xl p-6 md:p-8 shadow-[0_8px_32px_rgba(0,0,0,0.15)] flex flex-col items-center">
         <div className="mb-4 text-center">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
+          <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-2">
             <span className="material-symbols-outlined text-primary text-2xl">qr_code_2</span>
           </div>
-          <h2 className="font-extrabold text-xl text-on-surface tracking-tight">UPI Payment Gateway</h2>
+          <h2 className="font-extrabold text-xl text-foreground tracking-tight">UPI Payment Gateway</h2>
         </div>
 
         <Suspense

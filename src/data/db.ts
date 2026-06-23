@@ -43,14 +43,73 @@ async function verifyOrders(token: string) {
   }
 }
 
-async function saveOrdersToCookie(orders: Order[]) {
+async function getSessionUserFromCookie() {
   try {
     const cookieStore = await cookies();
-    // Keep only active/recent orders in cookie to prevent header overflow
-    const activeOrders = orders
-      .filter((o) => o.status !== "Cancelled" && o.status !== "Fulfilled")
+    const token = cookieStore.get("auth_token")?.value;
+    if (!token) return null;
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload as {
+      id: string;
+      email: string;
+      name: string;
+      role: "student" | "staff" | "admin";
+      department: string;
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+async function saveOrdersToCookie(orders: Order[]) {
+  try {
+    const user = await getSessionUserFromCookie();
+    if (!user || user.role !== "student") return;
+
+    const cookieStore = await cookies();
+    
+    // 1. Get existing orders from cookie
+    const ordersToken = cookieStore.get("orbit_orders")?.value;
+    const cookieOrders = ordersToken ? await verifyOrders(ordersToken) : [];
+    
+    // 2. Merge with database orders (which are passed as 'orders')
+    const allOrdersMap = new Map<string, Order>();
+    
+    // Add cookie orders belonging to this user
+    cookieOrders.forEach((o) => {
+      if (o.userId === user.id) {
+        allOrdersMap.set(o.id, o);
+      }
+    });
+    
+    // Add or update with database orders belonging to this user
+    orders.forEach((o) => {
+      if (o.userId === user.id) {
+        allOrdersMap.set(o.id, o);
+      }
+    });
+    
+    const studentOrders = Array.from(allOrdersMap.values());
+    
+    // Keep active/pending/preparing/ready orders
+    const activeOrders = studentOrders.filter(
+      (o) => o.status !== "Cancelled" && o.status !== "Fulfilled" && o.status !== "Pending Payment"
+    );
+    
+    // Keep completed orders
+    const completedOrders = studentOrders.filter(
+      (o) => o.status === "Cancelled" || o.status === "Fulfilled"
+    );
+    
+    // Sort completed orders by creation time descending, keeping up to 10
+    const sortedCompleted = completedOrders
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10);
-    const token = await signOrders(activeOrders);
+      
+    // Combine and limit total cookie size to 20 to avoid header overflow
+    const ordersToSave = [...activeOrders, ...sortedCompleted].slice(0, 20);
+
+    const token = await signOrders(ordersToSave);
     cookieStore.set("orbit_orders", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -59,7 +118,7 @@ async function saveOrdersToCookie(orders: Order[]) {
       path: "/",
     });
   } catch (e) {
-    // Ignore if cookies() is called outside request context (e.g. during build/prerender)
+    // Ignore if cookies() is called outside request context
   }
 }
 

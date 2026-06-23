@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MenuItem, Order, Review, DailySummary, User } from "@/data/db";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -140,25 +141,25 @@ export default function AdminDashboard() {
 
       if (item.salesCount >= avgSales && item.avgRating >= ratingThreshold) {
         quadrant = "Crowd Pleaser";
-        colorClass = "bg-emerald-50 text-emerald-800 border-emerald-300";
+        colorClass = "bg-secondary/15 text-secondary border-secondary/30";
         recommendation = "🌟 High sales & high ratings! Prominently feature on top of the menu.";
       } else if (item.salesCount >= avgSales && item.avgRating < ratingThreshold) {
         quadrant = "Needs Quality Attention";
-        colorClass = "bg-amber-50 text-amber-800 border-amber-300";
+        colorClass = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-300";
         recommendation = "⚠️ High sales but low ratings. Inspect recipe quality (less salt, fresher ingredients).";
       } else if (item.salesCount < avgSales && item.avgRating >= ratingThreshold) {
         quadrant = "High Potential";
-        colorClass = "bg-sky-50 text-sky-800 border-sky-300";
+        colorClass = "bg-primary/10 text-primary border-primary/30";
         recommendation = "📈 Loved by buyers but low sales. Launch a promotion or discount to boost visibility.";
       } else {
         quadrant = "Underperformer";
-        colorClass = "bg-rose-50 text-rose-800 border-rose-300";
+        colorClass = "bg-destructive/10 text-destructive border-destructive/30";
         recommendation = "❌ Low sales & low ratings. Adapt recipe or consider replacing with a new item.";
       }
 
       if (item.reviewCount === 0 && item.salesCount >= avgSales) {
         quadrant = "Crowd Pleaser";
-        colorClass = "bg-emerald-50 text-emerald-800 border-emerald-300";
+        colorClass = "bg-secondary/15 text-secondary border-secondary/30";
         recommendation = "🌟 High sales. Encourage students to leave reviews.";
       }
 
@@ -360,23 +361,26 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen pb-24 md:pb-8 bg-background">
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-white shadow-sm border-b border-outline-variant/10">
+      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-card shadow-sm border-b border-border text-foreground">
         <div className="flex items-center gap-4">
           <span className="font-extrabold text-2xl text-primary tracking-tight">OrderOrbit</span>
-          <span className="px-3 py-1 bg-surface-variant text-on-surface-variant rounded-full text-xs font-bold border border-outline-variant/10 hidden sm:block">
+          <span className="px-3 py-1 bg-muted text-muted-foreground rounded-full text-xs font-bold border border-border hidden sm:block">
             Admin Portal
           </span>
         </div>
-        <button
-          onClick={handleLogout}
-          className="text-on-surface-variant hover:text-primary transition-colors text-sm font-semibold flex items-center gap-1 border border-outline-variant/30 px-3 py-1.5 rounded-full hover:bg-surface-container"
-        >
-          <span className="material-symbols-outlined text-sm">logout</span> Logout
-        </button>
+        <div className="flex items-center gap-4">
+          <ThemeToggle />
+          <button
+            onClick={handleLogout}
+            className="text-muted-foreground hover:text-primary transition-colors text-sm font-semibold flex items-center gap-1 border border-border px-3 py-1.5 rounded-full hover:bg-muted cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-sm">logout</span> Logout
+          </button>
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 pt-24">
-        <div className="flex border-b border-outline-variant/20 mb-8 overflow-x-auto scrollbar-none">
+        <div className="flex border-b border-border/20 mb-8 overflow-x-auto scrollbar-none">
           {[
             { id: "orders", label: "Fulfillment Queue", icon: "receipt_long" },
             { id: "inventory", label: "Manage Inventory", icon: "inventory_2" },
@@ -390,7 +394,7 @@ export default function AdminDashboard() {
               className={`flex items-center gap-2 px-6 py-3 font-bold text-sm whitespace-nowrap border-b-2 transition-all ${
                 activeTab === tab.id
                   ? "border-primary text-primary"
-                  : "border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant/50"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border/50"
               }`}
             >
               <span className="material-symbols-outlined text-lg">{tab.icon}</span>
@@ -404,19 +408,19 @@ export default function AdminDashboard() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h2 className="font-extrabold text-2xl">Active Orders Queue</h2>
-                <p className="text-on-surface-variant text-sm mt-1">Process pre-ordered tokens in real time.</p>
+                <p className="text-muted-foreground text-sm mt-1">Process pre-ordered tokens in real time.</p>
               </div>
               <div className="flex gap-4">
-                <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-outline-variant/20 text-center">
-                  <div className="text-xs text-on-surface-variant">Pending Orders</div>
+                <div className="bg-card text-foreground px-4 py-2 rounded-xl shadow-sm border border-border/20 text-center">
+                  <div className="text-xs text-muted-foreground">Pending Orders</div>
                   <div className="text-lg font-extrabold text-primary">{pendingCount}</div>
                 </div>
-                <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-outline-variant/20 text-center">
-                  <div className="text-xs text-on-surface-variant">In Preparation</div>
-                  <div className="text-lg font-extrabold text-on-surface">{preparingCount}</div>
+                <div className="bg-card text-foreground px-4 py-2 rounded-xl shadow-sm border border-border/20 text-center">
+                  <div className="text-xs text-muted-foreground">In Preparation</div>
+                  <div className="text-lg font-extrabold text-foreground">{preparingCount}</div>
                 </div>
-                <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-outline-variant/20 text-center">
-                  <div className="text-xs text-on-surface-variant">Daily Revenue</div>
+                <div className="bg-card text-foreground px-4 py-2 rounded-xl shadow-sm border border-border/20 text-center">
+                  <div className="text-xs text-muted-foreground">Daily Revenue</div>
                   <div className="text-lg font-extrabold text-primary">
                     ₹{(dailyTotalCents / 100).toFixed(2)}
                   </div>
@@ -426,11 +430,11 @@ export default function AdminDashboard() {
 
             {/* Warning banner for Pending Verification */}
             {orders.filter((o) => o.status === "Pending Verification").length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="bg-amber-500/10 border border-amber-200 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="flex items-start sm:items-center gap-3">
                   <span className="material-symbols-outlined text-amber-600 text-3xl">warning</span>
                   <div>
-                    <h4 className="font-extrabold text-amber-800 text-sm sm:text-base">Action Required: UPI Receipts Pending Manual Review</h4>
+                    <h4 className="font-extrabold text-amber-600 dark:text-amber-400 text-sm sm:text-base">Action Required: UPI Receipts Pending Manual Review</h4>
                     <p className="text-amber-700 text-xs mt-0.5">
                       {orders.filter((o) => o.status === "Pending Verification").length} order(s) failed AI auto-verification. Please review and approve them manually.
                     </p>
@@ -442,18 +446,18 @@ export default function AdminDashboard() {
             {/* Category Parallel Prep Queues */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Drinks Board */}
-              <div className="bg-white rounded-2xl p-5 border border-outline-variant/20 shadow-sm flex flex-col min-h-[350px]">
-                <div className="flex justify-between items-center border-b border-outline-variant/10 pb-3 mb-4">
-                  <h3 className="font-extrabold text-base flex items-center gap-2 text-on-surface">
+              <div className="bg-card text-foreground rounded-2xl p-5 border border-border/20 shadow-sm flex flex-col min-h-[350px]">
+                <div className="flex justify-between items-center border-b border-border/10 pb-3 mb-4">
+                  <h3 className="font-extrabold text-base flex items-center gap-2 text-foreground">
                     <span>🍹</span> Drinks Board
                   </h3>
-                  <span className="bg-[#edf4ff] text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-outline-variant/20">
+                  <span className="bg-primary/5 text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-border/20">
                     {getPrepItems("drinks").filter(x => x.item.prepStatus !== "Completed").length} active
                   </span>
                 </div>
                 <div className="flex-grow space-y-3 overflow-y-auto max-h-[350px] pr-1">
                   {getPrepItems("drinks").length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-on-surface-variant text-xs italic py-12">
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-xs italic py-12">
                       No beverages in prep
                     </div>
                   ) : (
@@ -462,10 +466,10 @@ export default function AdminDashboard() {
                         key={`${orderId}-${item.id}`}
                         className={`p-3 rounded-xl border transition-all text-xs font-semibold ${
                           item.prepStatus === "Completed"
-                            ? "bg-emerald-50/20 border-emerald-100 opacity-60"
+                            ? "bg-secondary/15 border-secondary/20 opacity-60"
                             : item.prepStatus === "Preparing"
-                            ? "bg-sky-50/20 border-sky-200"
-                            : "bg-background border-outline-variant/15"
+                            ? "bg-primary/10 border-primary/25"
+                            : "bg-background border-border/15"
                         }`}
                       >
                         <div className="flex justify-between items-center mb-2">
@@ -473,16 +477,16 @@ export default function AdminDashboard() {
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                               item.prepStatus === "Completed"
-                                ? "border-emerald-300 text-emerald-800 bg-emerald-50"
+                                ? "border-secondary/30 text-secondary bg-secondary/15"
                                 : item.prepStatus === "Preparing"
-                                ? "border-sky-300 text-sky-800 bg-sky-50"
-                                : "border-amber-300 text-amber-800 bg-amber-50"
+                                ? "border-primary/30 text-primary bg-primary/10"
+                                : "border-amber-300 text-amber-600 dark:text-amber-400 bg-amber-500/10"
                             }`}
                           >
                             {item.prepStatus || "Pending"}
                           </span>
                         </div>
-                        <div className="text-on-surface text-sm font-bold mb-3">
+                        <div className="text-foreground text-sm font-bold mb-3">
                           {item.quantity}x {item.name}
                         </div>
                         <div className="flex justify-end gap-2">
@@ -510,18 +514,18 @@ export default function AdminDashboard() {
               </div>
 
               {/* Snacks Board */}
-              <div className="bg-white rounded-2xl p-5 border border-outline-variant/20 shadow-sm flex flex-col min-h-[350px]">
-                <div className="flex justify-between items-center border-b border-outline-variant/10 pb-3 mb-4">
-                  <h3 className="font-extrabold text-base flex items-center gap-2 text-on-surface">
+              <div className="bg-card text-foreground rounded-2xl p-5 border border-border/20 shadow-sm flex flex-col min-h-[350px]">
+                <div className="flex justify-between items-center border-b border-border/10 pb-3 mb-4">
+                  <h3 className="font-extrabold text-base flex items-center gap-2 text-foreground">
                     <span>🥪</span> Snacks Board
                   </h3>
-                  <span className="bg-[#edf4ff] text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-outline-variant/20">
+                  <span className="bg-primary/5 text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-border/20">
                     {getPrepItems("snacks").filter(x => x.item.prepStatus !== "Completed").length} active
                   </span>
                 </div>
                 <div className="flex-grow space-y-3 overflow-y-auto max-h-[350px] pr-1">
                   {getPrepItems("snacks").length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-on-surface-variant text-xs italic py-12">
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-xs italic py-12">
                       No snacks in prep
                     </div>
                   ) : (
@@ -530,10 +534,10 @@ export default function AdminDashboard() {
                         key={`${orderId}-${item.id}`}
                         className={`p-3 rounded-xl border transition-all text-xs font-semibold ${
                           item.prepStatus === "Completed"
-                            ? "bg-emerald-50/20 border-emerald-100 opacity-60"
+                            ? "bg-secondary/15 border-secondary/20 opacity-60"
                             : item.prepStatus === "Preparing"
-                            ? "bg-sky-50/20 border-sky-200"
-                            : "bg-[#f7f9ff] border-outline-variant/15"
+                            ? "bg-primary/10 border-primary/25"
+                            : "bg-[#f7f9ff] border-border/15"
                         }`}
                       >
                         <div className="flex justify-between items-center mb-2">
@@ -541,16 +545,16 @@ export default function AdminDashboard() {
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                               item.prepStatus === "Completed"
-                                ? "border-emerald-300 text-emerald-800 bg-emerald-50"
+                                ? "border-secondary/30 text-secondary bg-secondary/15"
                                 : item.prepStatus === "Preparing"
-                                ? "border-sky-300 text-sky-800 bg-sky-50"
-                                : "border-amber-300 text-amber-800 bg-amber-50"
+                                ? "border-primary/30 text-primary bg-primary/10"
+                                : "border-amber-300 text-amber-600 dark:text-amber-400 bg-amber-500/10"
                             }`}
                           >
                             {item.prepStatus || "Pending"}
                           </span>
                         </div>
-                        <div className="text-on-surface text-sm font-bold mb-3">
+                        <div className="text-foreground text-sm font-bold mb-3">
                           {item.quantity}x {item.name}
                         </div>
                         <div className="flex justify-end gap-2">
@@ -578,18 +582,18 @@ export default function AdminDashboard() {
               </div>
 
               {/* Meals Board */}
-              <div className="bg-white rounded-2xl p-5 border border-outline-variant/20 shadow-sm flex flex-col min-h-[350px]">
-                <div className="flex justify-between items-center border-b border-outline-variant/10 pb-3 mb-4">
-                  <h3 className="font-extrabold text-base flex items-center gap-2 text-on-surface">
+              <div className="bg-card text-foreground rounded-2xl p-5 border border-border/20 shadow-sm flex flex-col min-h-[350px]">
+                <div className="flex justify-between items-center border-b border-border/10 pb-3 mb-4">
+                  <h3 className="font-extrabold text-base flex items-center gap-2 text-foreground">
                     <span>🍲</span> Meals Board
                   </h3>
-                  <span className="bg-[#edf4ff] text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-outline-variant/20">
+                  <span className="bg-primary/5 text-primary text-xs font-bold px-2.5 py-0.5 rounded-full border border-border/20">
                     {getPrepItems("meals").filter(x => x.item.prepStatus !== "Completed").length} active
                   </span>
                 </div>
                 <div className="flex-grow space-y-3 overflow-y-auto max-h-[350px] pr-1">
                   {getPrepItems("meals").length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-on-surface-variant text-xs italic py-12">
+                    <div className="h-full flex items-center justify-center text-muted-foreground text-xs italic py-12">
                       No meals in prep
                     </div>
                   ) : (
@@ -598,10 +602,10 @@ export default function AdminDashboard() {
                         key={`${orderId}-${item.id}`}
                         className={`p-3 rounded-xl border transition-all text-xs font-semibold ${
                           item.prepStatus === "Completed"
-                            ? "bg-emerald-50/20 border-emerald-100 opacity-60"
+                            ? "bg-secondary/15 border-secondary/20 opacity-60"
                             : item.prepStatus === "Preparing"
-                            ? "bg-sky-50/20 border-sky-200"
-                            : "bg-[#f7f9ff] border-outline-variant/15"
+                            ? "bg-primary/10 border-primary/25"
+                            : "bg-[#f7f9ff] border-border/15"
                         }`}
                       >
                         <div className="flex justify-between items-center mb-2">
@@ -609,16 +613,16 @@ export default function AdminDashboard() {
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                               item.prepStatus === "Completed"
-                                ? "border-emerald-300 text-emerald-800 bg-emerald-50"
+                                ? "border-secondary/30 text-secondary bg-secondary/15"
                                 : item.prepStatus === "Preparing"
-                                ? "border-sky-300 text-sky-800 bg-sky-50"
-                                : "border-amber-300 text-amber-800 bg-amber-50"
+                                ? "border-primary/30 text-primary bg-primary/10"
+                                : "border-amber-300 text-amber-600 dark:text-amber-400 bg-amber-500/10"
                             }`}
                           >
                             {item.prepStatus || "Pending"}
                           </span>
                         </div>
-                        <div className="text-on-surface text-sm font-bold mb-3">
+                        <div className="text-foreground text-sm font-bold mb-3">
                           {item.quantity}x {item.name}
                         </div>
                         <div className="flex justify-end gap-2">
@@ -647,15 +651,15 @@ export default function AdminDashboard() {
             </div>
 
             {/* Verification & Pickup Desk Table */}
-            <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm">
-              <div className="px-6 py-4 border-b border-outline-variant/10">
-                <h3 className="font-extrabold text-lg text-on-surface">Verification & Pickup Desk</h3>
-                <p className="text-on-surface-variant text-xs mt-0.5">Manage receipt validations and ready order collections.</p>
+            <div className="bg-card text-foreground rounded-2xl border border-border/20 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-border/10">
+                <h3 className="font-extrabold text-lg text-foreground">Verification & Pickup Desk</h3>
+                <p className="text-muted-foreground text-xs mt-0.5">Manage receipt validations and ready order collections.</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-background text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                    <tr className="bg-background text-muted-foreground text-xs font-bold uppercase tracking-wider border-b border-border/20">
                       <th className="p-4">Token # / Ref</th>
                       <th className="p-4">Time Placed</th>
                       <th className="p-4">Items Ordered</th>
@@ -681,15 +685,15 @@ export default function AdminDashboard() {
                         const isPendingVerification = order.status === "Pending Verification";
 
                         return (
-                          <tr key={order.id} className="hover:bg-surface-container/20 transition-colors">
+                          <tr key={order.id} className="hover:bg-muted/20 transition-colors">
                             <td className="p-4 font-extrabold text-primary text-base">
                               {order.token || (
-                                <span className="px-2.5 py-1 bg-amber-100 text-amber-800 text-[10px] rounded-full font-bold uppercase border border-amber-200">
+                                <span className="px-2.5 py-1 bg-amber-100 text-amber-600 dark:text-amber-400 text-[10px] rounded-full font-bold uppercase border border-amber-200">
                                   Verify Pay
                                 </span>
                               )}
                             </td>
-                            <td className="p-4 text-on-surface-variant">
+                            <td className="p-4 text-muted-foreground">
                               {new Date(order.createdAt).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
@@ -698,13 +702,13 @@ export default function AdminDashboard() {
                             <td className="p-4">
                               <div className="space-y-1">
                                 {order.items.map((i, index) => (
-                                  <div key={index} className="font-semibold text-xs text-on-surface font-sans">
+                                  <div key={index} className="font-semibold text-xs text-foreground font-sans">
                                     {i.quantity}x {i.name}
                                   </div>
                                 ))}
                               </div>
                             </td>
-                            <td className="p-4 font-bold text-[#006a62]">
+                            <td className="p-4 font-bold text-secondary">
                               ₹{(order.total / 100).toFixed(2)}
                             </td>
                             <td className="p-4">
@@ -713,8 +717,8 @@ export default function AdminDashboard() {
                                   isReady
                                     ? "border-secondary text-secondary bg-secondary/5"
                                     : isPendingVerification
-                                    ? "border-amber-500 text-amber-700 bg-amber-50"
-                                    : "border-[#1e3244] text-[#1e3244] bg-[#edf4ff]"
+                                    ? "border-amber-500 text-amber-700 bg-amber-500/10"
+                                    : "border-border text-foreground bg-primary/5"
                                 }`}
                               >
                                 {order.status}
@@ -739,7 +743,7 @@ export default function AdminDashboard() {
                                 </button>
                               )}
                               {isFulfilled && (
-                                <span className="text-xs text-on-surface-variant font-semibold">
+                                <span className="text-xs text-muted-foreground font-semibold">
                                   Token Collected
                                 </span>
                               )}
@@ -750,7 +754,7 @@ export default function AdminDashboard() {
 
                     {orders.filter((o) => o.status === "Pending Verification" || o.status === "Ready" || o.status === "Fulfilled").length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-on-surface-variant text-sm">
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground text-sm">
                           No orders at Verification or Pickup desk.
                         </td>
                       </tr>
@@ -766,15 +770,15 @@ export default function AdminDashboard() {
           <section className="space-y-6">
             <div>
               <h2 className="font-extrabold text-2xl">User Onboarding & RBAC Management</h2>
-              <p className="text-on-surface-variant text-sm mt-1">
+              <p className="text-muted-foreground text-sm mt-1">
                 Review registration requests, approve new accounts, and retrieve activation tokens.
               </p>
             </div>
 
             {/* Pending Requests */}
-            <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
-              <div className="px-6 py-4 border-b border-outline-variant/10 bg-amber-50/20">
-                <h3 className="font-extrabold text-lg text-amber-900 flex items-center gap-2">
+            <div className="bg-card text-foreground rounded-2xl border border-border/20 overflow-hidden shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="px-6 py-4 border-b border-border/10 bg-amber-500/100/5">
+                <h3 className="font-extrabold text-lg text-amber-600 dark:text-amber-400 flex items-center gap-2">
                   <span className="material-symbols-outlined text-amber-700">pending_actions</span>
                   Pending Registration Requests ({users.filter(u => u.status === "pending").length})
                 </h3>
@@ -782,7 +786,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-background text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                    <tr className="bg-background text-muted-foreground text-xs font-bold uppercase tracking-wider border-b border-border/20">
                       <th className="p-4">Name</th>
                       <th className="p-4">Email</th>
                       <th className="p-4">Role</th>
@@ -793,12 +797,12 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="text-sm divide-y divide-outline-variant/10">
                     {users.filter(u => u.status === "pending").map((user) => (
-                      <tr key={user.id} className="hover:bg-surface-container/20 transition-colors">
+                      <tr key={user.id} className="hover:bg-muted/20 transition-colors">
                         <td className="p-4 font-bold">{user.name}</td>
                         <td className="p-4">{user.email}</td>
                         <td className="p-4">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-600 dark:text-amber-400 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
                           }`}>
                             {user.role}
                           </span>
@@ -823,7 +827,7 @@ export default function AdminDashboard() {
                     ))}
                     {users.filter(u => u.status === "pending").length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-6 text-center text-on-surface-variant text-sm italic">
+                        <td colSpan={6} className="p-6 text-center text-muted-foreground text-sm italic">
                           No pending registration requests.
                         </td>
                       </tr>
@@ -834,8 +838,8 @@ export default function AdminDashboard() {
             </div>
 
             {/* Approved & Awaiting Activation */}
-            <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm">
-              <div className="px-6 py-4 border-b border-outline-variant/10 bg-blue-50/20">
+            <div className="bg-card text-foreground rounded-2xl border border-border/20 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-border/10 bg-blue-50/20">
                 <h3 className="font-extrabold text-lg text-blue-900 flex items-center gap-2">
                   <span className="material-symbols-outlined text-blue-700">vpn_key</span>
                   Approved Accounts (Awaiting Activation - Share Tokens) ({users.filter(u => u.status === "approved").length})
@@ -844,7 +848,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-background text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                    <tr className="bg-background text-muted-foreground text-xs font-bold uppercase tracking-wider border-b border-border/20">
                       <th className="p-4">Name</th>
                       <th className="p-4">Email</th>
                       <th className="p-4">Role</th>
@@ -855,12 +859,12 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="text-sm divide-y divide-outline-variant/10">
                     {users.filter(u => u.status === "approved").map((user) => (
-                      <tr key={user.id} className="hover:bg-surface-container/20 transition-colors">
+                      <tr key={user.id} className="hover:bg-muted/20 transition-colors">
                         <td className="p-4 font-bold">{user.name}</td>
                         <td className="p-4">{user.email}</td>
                         <td className="p-4">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-600 dark:text-amber-400 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
                           }`}>
                             {user.role}
                           </span>
@@ -893,7 +897,7 @@ export default function AdminDashboard() {
                     ))}
                     {users.filter(u => u.status === "approved").length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-6 text-center text-on-surface-variant text-sm italic">
+                        <td colSpan={6} className="p-6 text-center text-muted-foreground text-sm italic">
                           No approved users waiting for activation.
                         </td>
                       </tr>
@@ -904,8 +908,8 @@ export default function AdminDashboard() {
             </div>
 
             {/* Active Users */}
-            <div className="bg-white rounded-2xl border border-outline-variant/20 overflow-hidden shadow-sm">
-              <div className="px-6 py-4 border-b border-outline-variant/10 bg-green-50/20">
+            <div className="bg-card text-foreground rounded-2xl border border-border/20 overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-border/10 bg-green-50/20">
                 <h3 className="font-extrabold text-lg text-green-900 flex items-center gap-2">
                   <span className="material-symbols-outlined text-green-700">group</span>
                   Active Users ({users.filter(u => u.status === "active").length})
@@ -914,7 +918,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                    <tr className="bg-[#f7f9ff] text-muted-foreground text-xs font-bold uppercase tracking-wider border-b border-border/20">
                       <th className="p-4">Name</th>
                       <th className="p-4">Email</th>
                       <th className="p-4">Role</th>
@@ -925,12 +929,12 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="text-sm divide-y divide-outline-variant/10">
                     {users.filter(u => u.status === "active").map((user) => (
-                      <tr key={user.id} className="hover:bg-surface-container/20 transition-colors">
+                      <tr key={user.id} className="hover:bg-muted/20 transition-colors">
                         <td className="p-4 font-bold">{user.name}</td>
                         <td className="p-4">{user.email}</td>
                         <td className="p-4">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                            user.role === "admin" ? "bg-red-100 text-red-800 border border-red-200" : user.role === "staff" ? "bg-amber-100 text-amber-600 dark:text-amber-400 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
                           }`}>
                             {user.role}
                           </span>
@@ -939,14 +943,14 @@ export default function AdminDashboard() {
                         <td className="p-4 font-mono text-xs">{user.studentId || "N/A"}</td>
                         <td className="p-4 text-right">
                           <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-bold">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Active
+                            <span className="h-1.5 w-1.5 rounded-full bg-secondary/150"></span> Active
                           </span>
                         </td>
                       </tr>
                     ))}
                     {users.filter(u => u.status === "active").length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-6 text-center text-on-surface-variant text-sm italic">
+                        <td colSpan={6} className="p-6 text-center text-muted-foreground text-sm italic">
                           No active users.
                         </td>
                       </tr>
@@ -963,7 +967,7 @@ export default function AdminDashboard() {
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="font-extrabold text-2xl">Item Database Control</h2>
-                <p className="text-on-surface-variant text-sm mt-1">
+                <p className="text-muted-foreground text-sm mt-1">
                   Adjust pricing, stock levels, or instantly toggle item availability.
                 </p>
               </div>
@@ -979,7 +983,7 @@ export default function AdminDashboard() {
               {menu.map((item) => (
                 <div
                   key={item.id}
-                  className={`bg-white rounded-2xl p-5 border border-outline-variant/20 shadow-sm flex flex-col justify-between ${
+                  className={`bg-card rounded-2xl p-5 border border-border/20 shadow-sm flex flex-col justify-between ${
                     !item.available ? "bg-red-50/20 border-red-200" : ""
                   }`}
                 >
@@ -987,29 +991,29 @@ export default function AdminDashboard() {
                     <div className="flex justify-between items-start gap-2 mb-3">
                       <div>
                         <h4 className="font-bold text-lg leading-tight">{item.name}</h4>
-                        <span className="text-xs font-semibold text-on-surface-variant bg-[#edf4ff] px-2.5 py-1 rounded-full border border-outline-variant/10">
+                        <span className="text-xs font-semibold text-muted-foreground bg-primary/5 px-2.5 py-1 rounded-full border border-border/10">
                           {item.category}
                         </span>
                       </div>
-                      <span className="text-[#006a62] font-bold text-base">
+                      <span className="text-secondary font-bold text-base">
                         ₹{(item.price / 100).toFixed(2)}
                       </span>
                     </div>
 
-                    <p className="text-xs text-on-surface-variant mb-4">
+                    <p className="text-xs text-muted-foreground mb-4">
                       Stock: <span className="font-bold">{item.stock}</span> | Prep Time:{" "}
                       <span className="font-bold">{item.prepTime}m</span>
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-outline-variant/10 pt-4 mt-2">
+                  <div className="flex items-center justify-between border-t border-border/10 pt-4 mt-2">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleToggleAvailability(item)}
                         className={`px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${
                           item.available
-                            ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-                            : "bg-rose-50 border-rose-300 text-rose-800 hover:bg-rose-100"
+                            ? "bg-secondary/15 border-secondary/30 text-secondary hover:bg-emerald-100"
+                            : "bg-destructive/10 border-destructive/30 text-destructive hover:bg-rose-100"
                         }`}
                       >
                         {item.available ? "🟢 Active Menu" : "🔴 Sold Out"}
@@ -1033,12 +1037,12 @@ export default function AdminDashboard() {
           <section className="space-y-6">
             <div>
               <h2 className="font-extrabold text-2xl">Structural Item Analytics Matrix</h2>
-              <p className="text-on-surface-variant text-sm mt-1">
+              <p className="text-muted-foreground text-sm mt-1">
                 Quadrant matrix analyzing item sales telemetry and student satisfaction scores.
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-outline-variant/20 shadow-sm space-y-6">
+            <div className="bg-card text-foreground rounded-2xl p-6 border border-border/20 shadow-sm space-y-6">
               <h3 className="font-bold text-lg mb-2">Item Quadrants & Operational Actions</h3>
               <div className="space-y-4">
                 {analytics.map((item) => (
@@ -1048,18 +1052,18 @@ export default function AdminDashboard() {
                   >
                     <div>
                       <div className="flex items-center gap-3 mb-1.5">
-                        <h4 className="font-bold text-base text-on-surface">{item.name}</h4>
+                        <h4 className="font-bold text-base text-foreground">{item.name}</h4>
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-extrabold border ${item.colorClass}`}
                         >
                           {item.quadrant}
                         </span>
                       </div>
-                      <p className="text-xs text-on-surface-variant mb-1">
-                        Sales count: <span className="font-bold text-on-surface">{item.salesCount} servings</span> |
-                        Avg rating: <span className="font-bold text-on-surface">{item.avgRating} ★</span> ({item.reviewCount} reviews)
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Sales count: <span className="font-bold text-foreground">{item.salesCount} servings</span> |
+                        Avg rating: <span className="font-bold text-foreground">{item.avgRating} ★</span> ({item.reviewCount} reviews)
                       </p>
-                      <p className="text-sm font-semibold text-[#006a62]">{item.recommendation}</p>
+                      <p className="text-sm font-semibold text-secondary">{item.recommendation}</p>
                     </div>
                   </div>
                 ))}
@@ -1073,7 +1077,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h2 className="font-extrabold text-2xl">End-of-Day Kitchen Insights Compilation</h2>
-                <p className="text-on-surface-variant text-sm mt-1">
+                <p className="text-muted-foreground text-sm mt-1">
                   Compile daily text comments using Gemini Flash to adjust kitchen workflows.
                 </p>
               </div>
@@ -1088,25 +1092,25 @@ export default function AdminDashboard() {
             </div>
 
             {summaries.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center border border-outline-variant/20">
-                <span className="material-symbols-outlined text-on-surface-variant text-5xl mb-2">psychology</span>
-                <p className="text-on-surface-variant text-sm">No insights briefs compiled yet. Click the button to analyze daily reviews.</p>
+              <div className="bg-card text-foreground rounded-2xl p-8 text-center border border-border/20">
+                <span className="material-symbols-outlined text-muted-foreground text-5xl mb-2">psychology</span>
+                <p className="text-muted-foreground text-sm">No insights briefs compiled yet. Click the button to analyze daily reviews.</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {summaries.map((summary) => (
                   <div
                     key={summary.id}
-                    className="bg-white rounded-2xl p-6 border border-outline-variant/20 shadow-sm space-y-4"
+                    className="bg-card text-foreground rounded-2xl p-6 border border-border/20 shadow-sm space-y-4"
                   >
-                    <div className="flex justify-between items-center border-b border-outline-variant/10 pb-3">
-                      <span className="text-xs text-on-surface-variant font-bold">Brief Date: {summary.date}</span>
-                      <span className="bg-[#edf4ff] text-primary text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-outline-variant/20">
+                    <div className="flex justify-between items-center border-b border-border/10 pb-3">
+                      <span className="text-xs text-muted-foreground font-bold">Brief Date: {summary.date}</span>
+                      <span className="bg-primary/5 text-primary text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-border/20">
                         Gemini Compiled
                       </span>
                     </div>
 
-                    <div className="prose prose-sm text-xs font-semibold text-on-surface-variant leading-relaxed whitespace-pre-line">
+                    <div className="prose prose-sm text-xs font-semibold text-muted-foreground leading-relaxed whitespace-pre-line">
                       {summary.summary}
                     </div>
                   </div>
@@ -1119,10 +1123,10 @@ export default function AdminDashboard() {
 
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-outline-variant/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150">
+          <div className="bg-card text-foreground rounded-2xl max-w-md w-full border border-border/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150">
             <button
               onClick={() => setShowAddModal(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface"
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
@@ -1136,7 +1140,7 @@ export default function AdminDashboard() {
                   required
                   value={newItemData.name}
                   onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
-                  className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                 />
               </div>
 
@@ -1149,7 +1153,7 @@ export default function AdminDashboard() {
                     required
                     value={newItemData.price || ""}
                     onChange={(e) => setNewItemData({ ...newItemData, price: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1159,7 +1163,7 @@ export default function AdminDashboard() {
                     required
                     value={newItemData.prepTime}
                     onChange={(e) => setNewItemData({ ...newItemData, prepTime: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -1172,7 +1176,7 @@ export default function AdminDashboard() {
                     required
                     value={newItemData.stock}
                     onChange={(e) => setNewItemData({ ...newItemData, stock: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1180,7 +1184,7 @@ export default function AdminDashboard() {
                   <select
                     value={newItemData.category}
                     onChange={(e) => setNewItemData({ ...newItemData, category: e.target.value })}
-                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   >
                     <option>Breakfast</option>
                     <option>Lunch</option>
@@ -1196,7 +1200,7 @@ export default function AdminDashboard() {
                   type="text"
                   value={newItemData.image}
                   onChange={(e) => setNewItemData({ ...newItemData, image: e.target.value })}
-                  className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   placeholder="https://unsplash..."
                 />
               </div>
@@ -1214,10 +1218,10 @@ export default function AdminDashboard() {
 
       {editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-outline-variant/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150">
+          <div className="bg-card text-foreground rounded-2xl max-w-md w-full border border-border/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150">
             <button
               onClick={() => setEditingItem(null)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface"
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
@@ -1231,7 +1235,7 @@ export default function AdminDashboard() {
                   required
                   value={editItemData.name}
                   onChange={(e) => setEditItemData({ ...editItemData, name: e.target.value })}
-                  className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                 />
               </div>
 
@@ -1244,7 +1248,7 @@ export default function AdminDashboard() {
                     required
                     value={editItemData.price || ""}
                     onChange={(e) => setEditItemData({ ...editItemData, price: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1254,7 +1258,7 @@ export default function AdminDashboard() {
                     required
                     value={editItemData.prepTime}
                     onChange={(e) => setEditItemData({ ...editItemData, prepTime: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -1267,7 +1271,7 @@ export default function AdminDashboard() {
                     required
                     value={editItemData.stock}
                     onChange={(e) => setEditItemData({ ...editItemData, stock: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
                 <div>
@@ -1275,7 +1279,7 @@ export default function AdminDashboard() {
                   <select
                     value={editItemData.category}
                     onChange={(e) => setEditItemData({ ...editItemData, category: e.target.value })}
-                    className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                    className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                   >
                     <option>Breakfast</option>
                     <option>Lunch</option>
@@ -1291,7 +1295,7 @@ export default function AdminDashboard() {
                   type="text"
                   value={editItemData.image}
                   onChange={(e) => setEditItemData({ ...editItemData, image: e.target.value })}
-                  className="w-full rounded-xl border border-outline-variant/40 p-2.5 text-sm focus:outline-none focus:border-primary"
+                  className="w-full rounded-xl border border-border/40 p-2.5 text-sm focus:outline-none focus:border-primary"
                 />
               </div>
 
@@ -1303,7 +1307,7 @@ export default function AdminDashboard() {
                   onChange={(e) => setEditItemData({ ...editItemData, available: e.target.checked })}
                   className="rounded text-primary focus:ring-primary h-4 w-4"
                 />
-                <label htmlFor="edit-available" className="text-sm font-bold text-on-surface">
+                <label htmlFor="edit-available" className="text-sm font-bold text-foreground">
                   Item is Available for Pre-Order
                 </label>
               </div>
@@ -1321,40 +1325,40 @@ export default function AdminDashboard() {
 
       {selectedVerificationOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-outline-variant/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150 flex flex-col max-h-[90vh]">
+          <div className="bg-card text-foreground rounded-2xl max-w-lg w-full border border-border/20 p-6 shadow-xl relative animate-in fade-in zoom-in duration-150 flex flex-col max-h-[90vh]">
             <button
               onClick={() => setSelectedVerificationOrder(null)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1.5 hover:bg-surface-container rounded-full transition-colors"
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1.5 hover:bg-muted rounded-full transition-colors"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
 
-            <h3 className="font-extrabold text-xl mb-2 flex items-center gap-2 text-on-surface">
+            <h3 className="font-extrabold text-xl mb-2 flex items-center gap-2 text-foreground">
               <span className="material-symbols-outlined text-amber-500">receipt_long</span>
               Review UPI Transaction Receipt
             </h3>
-            <p className="text-on-surface-variant text-xs mb-4">
+            <p className="text-muted-foreground text-xs mb-4">
               Inspect the screenshot and verify if the payment was successfully credited to the canteen UPI account.
             </p>
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin">
               {/* Order Info Grid */}
-              <div className="grid grid-cols-2 gap-4 bg-[#f7f9ff] p-4 rounded-xl border border-outline-variant/15 text-xs font-semibold text-on-surface-variant">
+              <div className="grid grid-cols-2 gap-4 bg-muted/45 p-4 rounded-xl border border-border/15 text-xs font-semibold text-muted-foreground">
                 <div>
-                  <span className="text-[10px] uppercase text-on-surface-variant/70 block">Student Reference</span>
-                  <span className="text-on-surface font-bold">{selectedVerificationOrder.userId}</span>
+                  <span className="text-[10px] uppercase text-muted-foreground/70 block">Student Reference</span>
+                  <span className="text-foreground font-bold">{selectedVerificationOrder.userId}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase text-on-surface-variant/70 block">Submitted UTR</span>
-                  <span className="text-on-surface font-bold tracking-wider">{selectedVerificationOrder.utr || "N/A"}</span>
+                  <span className="text-[10px] uppercase text-muted-foreground/70 block">Submitted UTR</span>
+                  <span className="text-foreground font-bold tracking-wider">{selectedVerificationOrder.utr || "N/A"}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase text-on-surface-variant/70 block">Expected Price</span>
-                  <span className="text-emerald-700 font-extrabold text-sm">₹{(selectedVerificationOrder.total / 100).toFixed(2)}</span>
+                  <span className="text-[10px] uppercase text-muted-foreground/70 block">Expected Price</span>
+                  <span className="text-secondary font-extrabold text-sm">₹{(selectedVerificationOrder.total / 100).toFixed(2)}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase text-on-surface-variant/70 block">Items Detail</span>
-                  <span className="text-on-surface font-bold">
+                  <span className="text-[10px] uppercase text-muted-foreground/70 block">Items Detail</span>
+                  <span className="text-foreground font-bold">
                     {selectedVerificationOrder.items.map((i) => `${i.quantity}x ${i.name}`).join(", ")}
                   </span>
                 </div>
@@ -1362,8 +1366,8 @@ export default function AdminDashboard() {
 
               {/* Receipt Image */}
               <div className="space-y-2">
-                <span className="text-[10px] uppercase font-bold text-on-surface-variant/70 block">Uploaded Receipt Screenshot</span>
-                <div className="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden p-2 flex justify-center max-h-[350px]">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground/70 block">Uploaded Receipt Screenshot</span>
+                <div className="bg-muted border border-border/20 rounded-xl overflow-hidden p-2 flex justify-center max-h-[350px]">
                   {selectedVerificationOrder.screenshotUrl ? (
                     <img
                       src={selectedVerificationOrder.screenshotUrl}
@@ -1371,7 +1375,7 @@ export default function AdminDashboard() {
                       className="max-h-[330px] w-auto object-contain rounded-lg shadow-sm"
                     />
                   ) : (
-                    <div className="h-[200px] flex items-center justify-center text-on-surface-variant text-xs italic">
+                    <div className="h-[200px] flex items-center justify-center text-muted-foreground text-xs italic">
                       No screenshot provided.
                     </div>
                   )}
@@ -1380,13 +1384,13 @@ export default function AdminDashboard() {
             </div>
 
             {/* Actions Footer */}
-            <div className="grid grid-cols-2 gap-3 border-t border-outline-variant/10 pt-4 mt-4">
+            <div className="grid grid-cols-2 gap-3 border-t border-border/10 pt-4 mt-4">
               <button
                 onClick={async () => {
                   await handleUpdateOrderStatus(selectedVerificationOrder.id, "Cancelled");
                   setSelectedVerificationOrder(null);
                 }}
-                className="border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 font-extrabold py-2.5 rounded-xl transition-all text-sm active:scale-95 flex items-center justify-center gap-1"
+                className="border border-rose-200 text-rose-700 bg-destructive/10 hover:bg-rose-100 font-extrabold py-2.5 rounded-xl transition-all text-sm active:scale-95 flex items-center justify-center gap-1"
               >
                 <span className="material-symbols-outlined text-sm">close</span>
                 Reject & Cancel

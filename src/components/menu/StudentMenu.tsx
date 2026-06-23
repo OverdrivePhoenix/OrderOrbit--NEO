@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MenuItem, Order, Review } from "@/data/db";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function StudentMenu() {
   const router = useRouter();
@@ -232,6 +233,7 @@ export default function StudentMenu() {
           <span className="font-extrabold text-2xl text-primary tracking-tight">OrderOrbit</span>
         </div>
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           <button
             onClick={handleLogout}
             className="text-muted-foreground hover:text-primary transition-colors text-sm font-semibold flex items-center gap-1 border border-border px-3 py-1.5 rounded-full hover:bg-muted cursor-pointer"
