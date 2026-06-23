@@ -47,7 +47,7 @@ export default function Home() {
         <HeroScrollDemo />
 
         {/* Footer feature list */}
-        <section className="bg-white/60 backdrop-blur-md py-16 px-6 border-t border-outline-variant/10">
+        <section className="bg-white/60 dark:bg-black/40 backdrop-blur-md py-16 px-6 border-t border-outline-variant/10">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="p-6 rounded-2xl bg-surface-container/30 border border-outline-variant/20">
               <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4">

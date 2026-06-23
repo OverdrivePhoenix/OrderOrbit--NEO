@@ -5,7 +5,7 @@ import Image from "next/image";
 
 export function HeroScrollDemo() {
   return (
-    <div className="flex flex-col overflow-hidden bg-background py-12">
+    <div className="flex flex-col overflow-hidden py-12">
       <ContainerScroll
         titleComponent={
           <div className="mb-6">
