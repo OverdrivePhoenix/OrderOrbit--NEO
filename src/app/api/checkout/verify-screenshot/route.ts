@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Database } from "@/data/db";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, verifyOrders, signOrders } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -135,26 +135,57 @@ Return the parsed values in a strict JSON format with no markdown blocks:
     }
 
     // 4. Update Database based on AI Verification Result
+    let confirmedOrder: any = null;
+    let verificationOrder: any = null;
+
     if (aiResult.verified) {
       // Auto-approve: confirm order and issue pickup token
-      const confirmedOrder = await Database.confirmOrder(sessionId, aiResult.utr, "AI");
-      return NextResponse.json({
+      confirmedOrder = await Database.confirmOrder(sessionId, aiResult.utr, "AI");
+    } else {
+      // Failed auto-approval: Send to "Pending Verification" queue for Canteen Staff manual check
+      const fallbackUtr = aiResult.utr !== "Invalid" && aiResult.utr !== "Pending" ? aiResult.utr : `sim_utr_${Date.now()}`;
+      verificationOrder = await Database.submitForVerification(sessionId, fallbackUtr, screenshot);
+    }
+
+    // Sync updated order in cookies
+    const targetOrder = confirmedOrder || verificationOrder;
+    const ordersToken = req.cookies.get("orbit_orders")?.value;
+    const cookieOrders = ordersToken ? await verifyOrders(ordersToken) : [];
+    
+    const existingIdx = cookieOrders.findIndex((o) => o.sessionId === sessionId);
+    if (existingIdx >= 0) {
+      cookieOrders[existingIdx] = { ...cookieOrders[existingIdx], ...targetOrder };
+    } else if (targetOrder) {
+      cookieOrders.push(targetOrder);
+    }
+    
+    const newToken = await signOrders(cookieOrders);
+    
+    let response: NextResponse;
+    if (aiResult.verified) {
+      response = NextResponse.json({
         success: true,
         verified: true,
         token: confirmedOrder?.token,
         order: confirmedOrder,
       });
     } else {
-      // Failed auto-approval: Send to "Pending Verification" queue for Canteen Staff manual check
-      const fallbackUtr = aiResult.utr !== "Invalid" && aiResult.utr !== "Pending" ? aiResult.utr : `sim_utr_${Date.now()}`;
-      const verificationOrder = await Database.submitForVerification(sessionId, fallbackUtr, screenshot);
-      return NextResponse.json({
+      response = NextResponse.json({
         success: true,
         verified: false,
         error: aiResult.error || "OCR amount mismatch",
         order: verificationOrder,
       });
     }
+
+    response.cookies.set("orbit_orders", newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24,
+      path: "/",
+    });
+    return response;
   } catch (err: any) {
     console.error("Screenshot verification API error:", err);
     return NextResponse.json({ error: "Failed to verify receipt" }, { status: 500 });

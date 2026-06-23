@@ -46,3 +46,22 @@ export async function getSessionUser() {
     return null;
   }
 }
+
+export async function signOrders(orders: any[]) {
+  const token = await new SignJWT({ orders })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("24h")
+    .sign(JWT_SECRET);
+  return token;
+}
+
+export async function verifyOrders(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload.orders as any[];
+  } catch (error) {
+    return [];
+  }
+}
+

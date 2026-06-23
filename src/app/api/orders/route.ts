@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Database, Order } from "@/data/db";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, verifyOrders, signOrders } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -100,7 +100,26 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, order: updatedOrder });
+    // Sync updated order in cookies
+    const ordersToken = req.cookies.get("orbit_orders")?.value;
+    const cookieOrders = ordersToken ? await verifyOrders(ordersToken) : [];
+    const existingIdx = cookieOrders.findIndex((o) => o.id === id);
+    if (existingIdx >= 0) {
+      cookieOrders[existingIdx] = { ...cookieOrders[existingIdx], ...updatedOrder };
+    } else {
+      cookieOrders.push(updatedOrder);
+    }
+    const newToken = await signOrders(cookieOrders);
+
+    const response = NextResponse.json({ success: true, order: updatedOrder });
+    response.cookies.set("orbit_orders", newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: "/",
+    });
+    return response;
   } catch (error) {
     return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
   }

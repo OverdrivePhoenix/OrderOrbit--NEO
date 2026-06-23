@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Database } from "@/data/db";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, verifyOrders } from "@/lib/auth";
+import { cookies } from "next/headers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,8 +17,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Session ID is required" }, { status: 400 });
     }
 
+    // 1. Try reading from Database
     const db = await Database.read();
-    const order = db.orders.find((o) => o.sessionId === sessionId);
+    let order = db.orders.find((o) => o.sessionId === sessionId);
+
+    // 2. Fallback to browser cookie for Vercel/serverless environments
+    if (!order) {
+      const cookieStore = await cookies();
+      const ordersToken = cookieStore.get("orbit_orders")?.value;
+      const cookieOrders = ordersToken ? await verifyOrders(ordersToken) : [];
+      order = cookieOrders.find((o) => o.sessionId === sessionId);
+    }
 
     if (!order) {
       return NextResponse.json({ error: "Pending order not found" }, { status: 404 });

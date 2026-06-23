@@ -1,5 +1,7 @@
 import fs from "fs";
 import path from "path";
+import { SignJWT, jwtVerify } from "jose";
+import { cookies } from "next/headers";
 
 // Global Mutex to synchronize all database operations
 class Mutex {
@@ -19,6 +21,62 @@ class Mutex {
 
 const dbMutex = new Mutex();
 const DB_FILE_PATH = path.join(process.cwd(), "src", "data", "db.json");
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "default-super-secret-key-that-is-very-long"
+);
+
+async function signOrders(orders: any[]) {
+  return await new SignJWT({ orders })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("24h")
+    .sign(JWT_SECRET);
+}
+
+async function verifyOrders(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload.orders as any[];
+  } catch (error) {
+    return [];
+  }
+}
+
+async function saveOrdersToCookie(orders: Order[]) {
+  try {
+    const cookieStore = await cookies();
+    // Keep only active/recent orders in cookie to prevent header overflow
+    const activeOrders = orders
+      .filter((o) => o.status !== "Cancelled" && o.status !== "Fulfilled")
+      .slice(0, 10);
+    const token = await signOrders(activeOrders);
+    cookieStore.set("orbit_orders", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: "/",
+    });
+  } catch (e) {
+    // Ignore if cookies() is called outside request context (e.g. during build/prerender)
+  }
+}
+
+async function saveWalletToCookie(userId: string, balance: number) {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(`orbit_wallet_${userId}`, balance.toString(), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24,
+      path: "/",
+    });
+  } catch (e) {
+    // Ignore
+  }
+}
 
 export interface User {
   id: string;
@@ -113,7 +171,40 @@ export class Database {
   static async read(): Promise<DatabaseSchema> {
     const release = await dbMutex.acquire();
     try {
-      return this.readRaw();
+      const db = this.readRaw();
+
+      // Load orders and wallet balance from cookies (for serverless persistence)
+      try {
+        const cookieStore = await cookies();
+
+        // 1. Merge orders
+        const ordersToken = cookieStore.get("orbit_orders")?.value;
+        if (ordersToken) {
+          const cookieOrders = await verifyOrders(ordersToken);
+          cookieOrders.forEach((co) => {
+            const existingIdx = db.orders.findIndex((o) => o.id === co.id);
+            if (existingIdx >= 0) {
+              const existing = db.orders[existingIdx];
+              // Merge if cookie order has same or later timestamp
+              if (new Date(co.createdAt).getTime() >= new Date(existing.createdAt).getTime()) {
+                db.orders[existingIdx] = co;
+              }
+            } else {
+              db.orders.push(co);
+            }
+          });
+        }
+
+        // 2. Load wallet balances
+        db.users.forEach((u) => {
+          const val = cookieStore.get(`orbit_wallet_${u.id}`)?.value;
+          if (val) {
+            u.walletBalance = parseInt(val, 10);
+          }
+        });
+      } catch (err) {}
+
+      return db;
     } finally {
       release();
     }
@@ -125,6 +216,17 @@ export class Database {
       const db = this.readRaw();
       updater(db);
       this.writeRaw(db);
+
+      // Update cookies
+      try {
+        await saveOrdersToCookie(db.orders);
+        for (const u of db.users) {
+          if (u.walletBalance !== undefined) {
+            await saveWalletToCookie(u.id, u.walletBalance);
+          }
+        }
+      } catch (err) {}
+
       return db;
     } finally {
       release();
@@ -203,6 +305,7 @@ export class Database {
 
       db.orders.push(newOrder);
       this.writeRaw(db);
+      await saveOrdersToCookie(db.orders);
       return newOrder;
     } finally {
       release();
@@ -231,6 +334,7 @@ export class Database {
 
       order.status = "Cancelled";
       this.writeRaw(db);
+      await saveOrdersToCookie(db.orders);
     } finally {
       release();
     }
@@ -252,6 +356,7 @@ export class Database {
       order.verifiedBy = null;
 
       this.writeRaw(db);
+      await saveOrdersToCookie(db.orders);
       return order;
     } finally {
       release();
@@ -277,6 +382,7 @@ export class Database {
       order.createdAt = new Date().toISOString();
       
       this.writeRaw(db);
+      await saveOrdersToCookie(db.orders);
       return order;
     } finally {
       release();
@@ -382,6 +488,8 @@ export class Database {
 
       db.orders.push(newOrder);
       this.writeRaw(db);
+      await saveWalletToCookie(user.id, user.walletBalance);
+      await saveOrdersToCookie(db.orders);
       return newOrder;
     } finally {
       release();
@@ -401,6 +509,7 @@ export class Database {
       }
       user.walletBalance = (user.walletBalance || 0) + amount;
       this.writeRaw(db);
+      await saveWalletToCookie(user.id, user.walletBalance);
       return user.walletBalance;
     } finally {
       release();
@@ -439,6 +548,7 @@ export class Database {
       }
 
       this.writeRaw(db);
+      await saveOrdersToCookie(db.orders);
       return order;
     } finally {
       release();
