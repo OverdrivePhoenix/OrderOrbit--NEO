@@ -1,43 +1,31 @@
-import { getApps, initializeApp, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import fs from "fs";
 import path from "path";
 import { encrypt, decrypt } from "./encryption";
 
 const FALLBACK_FILE_PATH = path.join(process.cwd(), "src", "data", "credentials_local.json");
 
-// Check if credentials are present in env
-const hasFirebaseEnv =
-  process.env.FIREBASE_PROJECT_ID &&
-  process.env.FIREBASE_CLIENT_EMAIL &&
-  process.env.FIREBASE_PRIVATE_KEY;
+// Firebase Web Configuration provided by user
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAPxZpS9itwOnZUyuPKmqB2ShMEcam7vgk",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "rder-orbit.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "rder-orbit",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "rder-orbit.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "154930310663",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:154930310663:web:edacea2fc2e8861f3704a2",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-T8SJ004R76"
+};
 
-let isFirestoreInitialized = false;
+let app;
 let firestoreDb: any = null;
 
 try {
-  if (hasFirebaseEnv && getApps().length === 0) {
-    initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, "\n"),
-      }),
-    });
-    isFirestoreInitialized = true;
-    firestoreDb = getFirestore();
-    console.log("Firebase Admin initialized successfully using environment credentials.");
-  } else if (getApps().length > 0) {
-    isFirestoreInitialized = true;
-    firestoreDb = getFirestore();
-  } else {
-    console.warn(
-      "Firebase Admin environment variables missing. Falling back to local credentials file:",
-      FALLBACK_FILE_PATH
-    );
-  }
-} catch (e: any) {
-  console.error("Failed to initialize Firebase Admin SDK:", e.message || e);
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  firestoreDb = getFirestore(app);
+  console.log("Firebase App initialized successfully with projectId:", firebaseConfig.projectId);
+} catch (error: any) {
+  console.error("Failed to initialize Firebase App SDK:", error.message || error);
   console.warn("Falling back to local credentials file:", FALLBACK_FILE_PATH);
 }
 
@@ -79,16 +67,15 @@ export interface UserCredentials {
 export async function getCredentials(userId: string): Promise<UserCredentials | null> {
   if (firestoreDb) {
     try {
-      const docRef = firestoreDb.collection("credentials").doc(userId);
-      const docSnap = await docRef.get();
-      if (!docSnap.exists) {
-        return null;
+      const docRef = doc(firestoreDb, "credentials", userId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data() || {};
+        return {
+          passwordHash: data.passwordHash ? decrypt(data.passwordHash) : null,
+          activationToken: data.activationToken ? decrypt(data.activationToken) : null,
+        };
       }
-      const data = docSnap.data() || {};
-      return {
-        passwordHash: data.passwordHash ? decrypt(data.passwordHash) : null,
-        activationToken: data.activationToken ? decrypt(data.activationToken) : null,
-      };
     } catch (error) {
       console.error("Error reading credentials from Firestore:", error);
       // Fallback to local file if Firestore read fails
@@ -124,8 +111,8 @@ export async function saveCredentials(
 
   if (firestoreDb) {
     try {
-      const docRef = firestoreDb.collection("credentials").doc(userId);
-      await docRef.set(encryptedData, { merge: true });
+      const docRef = doc(firestoreDb, "credentials", userId);
+      await setDoc(docRef, encryptedData, { merge: true });
       return;
     } catch (error) {
       console.error("Error writing credentials to Firestore:", error);
@@ -149,8 +136,8 @@ export async function saveCredentials(
 export async function deleteCredentials(userId: string): Promise<void> {
   if (firestoreDb) {
     try {
-      const docRef = firestoreDb.collection("credentials").doc(userId);
-      await docRef.delete();
+      const docRef = doc(firestoreDb, "credentials", userId);
+      await deleteDoc(docRef);
       return;
     } catch (error) {
       console.error("Error deleting credentials from Firestore:", error);
