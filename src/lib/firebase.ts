@@ -22,7 +22,16 @@ let firestoreDb: any = null;
 
 try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-  firestoreDb = getFirestore(app);
+  // Force long polling to avoid gRPC connection timeouts in serverless functions
+  const { initializeFirestore } = require("firebase/firestore");
+  try {
+    firestoreDb = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    });
+  } catch (e) {
+    const { getFirestore } = require("firebase/firestore");
+    firestoreDb = getFirestore(app);
+  }
   console.log("Firebase App initialized successfully with projectId:", firebaseConfig.projectId);
 } catch (error: any) {
   console.error("Failed to initialize Firebase App SDK:", error.message || error);
