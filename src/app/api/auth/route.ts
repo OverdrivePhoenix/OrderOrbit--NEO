@@ -39,10 +39,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify password using bcryptjs
+    // Verify password using bcryptjs by fetching from Firestore/fallback
+    const { getCredentials } = require("@/lib/firebase");
+    const credentials = await getCredentials(user.id);
+    const passwordHash = credentials?.passwordHash;
+
     const bcrypt = require("bcryptjs");
-    const isPasswordCorrect = user.password_hash
-      ? await bcrypt.compare(password, user.password_hash)
+    const isPasswordCorrect = passwordHash
+      ? await bcrypt.compare(password, passwordHash)
       : false;
 
     if (!isPasswordCorrect) {

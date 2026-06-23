@@ -140,12 +140,14 @@ async function saveWalletToCookie(userId: string, balance: number) {
 export interface User {
   id: string;
   email: string;
+  // NOTE: password_hash is now stored encrypted in Firestore (or local fallback)
   password_hash?: string | null;
   name: string;
   role: "student" | "staff" | "admin";
   status: "pending" | "approved" | "active";
   department: string;
   studentId?: string;
+  // NOTE: activationToken is now stored encrypted in Firestore (or local fallback)
   activationToken?: string | null;
   walletBalance?: number; // In paise (Campus credits)
 }

@@ -19,8 +19,22 @@ export async function GET(req: NextRequest) {
     }
 
     const db = await Database.read();
-    // Return all users for admin review (excluding password hashes for security)
-    const sanitizedUsers = db.users.map(({ password_hash, ...u }) => u);
+    const { getCredentials } = require("@/lib/firebase");
+
+    // Return all users for admin review (excluding password hashes and retrieving activation tokens from Firestore/fallback)
+    const sanitizedUsers = await Promise.all(
+      db.users.map(async ({ password_hash, ...u }) => {
+        if (u.status === "approved") {
+          const creds = await getCredentials(u.id);
+          return {
+            ...u,
+            activationToken: creds?.activationToken || null,
+          };
+        }
+        return u;
+      })
+    );
+
     return NextResponse.json({ users: sanitizedUsers });
   } catch (error: any) {
     console.error("Admin Users GET error:", error);
@@ -49,6 +63,8 @@ export async function PATCH(req: NextRequest) {
 
     const user = db.users[userIndex];
 
+    const { saveCredentials, deleteCredentials } = require("@/lib/firebase");
+
     if (action === "approve") {
       if (user.status !== "pending") {
         return NextResponse.json({ error: "User is not in pending status" }, { status: 400 });
@@ -56,11 +72,14 @@ export async function PATCH(req: NextRequest) {
 
       const activationToken = `ACTIV-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
+      // Save encrypted activation token in Firestore/fallback
+      await saveCredentials(userId, { activationToken });
+
       await Database.write((dbData) => {
         const u = dbData.users.find((x) => x.id === userId);
         if (u) {
           u.status = "approved";
-          u.activationToken = activationToken;
+          delete u.activationToken; // clean up local db field if any
         }
       });
 
@@ -70,6 +89,9 @@ export async function PATCH(req: NextRequest) {
         activationToken,
       });
     } else if (action === "reject") {
+      // Delete user credentials document from Firestore/fallback
+      await deleteCredentials(userId);
+
       await Database.write((dbData) => {
         dbData.users = dbData.users.filter((x) => x.id !== userId);
       });

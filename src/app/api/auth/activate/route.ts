@@ -40,7 +40,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!user.activationToken || user.activationToken.toUpperCase() !== activationToken.trim().toUpperCase()) {
+    // Fetch and decrypt activation token from Firestore/fallback
+    const { getCredentials, saveCredentials } = require("@/lib/firebase");
+    const credentials = await getCredentials(user.id);
+    const storeToken = credentials?.activationToken;
+
+    if (!storeToken || storeToken.toUpperCase() !== activationToken.trim().toUpperCase()) {
       return NextResponse.json(
         { error: "Invalid activation token." },
         { status: 400 }
@@ -51,12 +56,19 @@ export async function POST(req: NextRequest) {
     const bcrypt = require("bcryptjs");
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Save encrypted credentials to Firestore/fallback
+    await saveCredentials(user.id, {
+      passwordHash: hashedPassword,
+      activationToken: null,
+    });
+
     await Database.write((dbData) => {
       const u = dbData.users.find((x) => x.id === user.id);
       if (u) {
-        u.password_hash = hashedPassword;
+        // Remove plain text credential fields if they exist in local DB
+        delete u.password_hash;
+        delete u.activationToken;
         u.status = "active";
-        u.activationToken = null;
       }
     });
 
