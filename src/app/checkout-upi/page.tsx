@@ -54,7 +54,7 @@ function UpiCheckoutContent() {
   useEffect(() => {
     if (order) {
       const orderTotalInRupees = (order.total || 0) / 100;
-      const upiPayee = "canteen@upi";
+      const upiPayee = "jkbsace@okhdfcbank";
       const upiName = "OrderOrbit College Canteen";
       const upiLink = `upi://pay?pa=${upiPayee}&pn=${encodeURIComponent(upiName)}&am=${orderTotalInRupees.toFixed(2)}&tn=${order.id}&cu=INR`;
       QRCode.toDataURL(upiLink, { width: 250, margin: 1 })
@@ -158,7 +158,7 @@ function UpiCheckoutContent() {
   }
 
   const orderTotalInRupees = (order?.total || 0) / 100;
-  const upiPayee = "canteen@upi";
+  const upiPayee = "jkbsace@okhdfcbank";
 
   // SUCCESS Screen: AI Auto-Approved Payment
   if (ocrSuccess && confirmedOrder) {

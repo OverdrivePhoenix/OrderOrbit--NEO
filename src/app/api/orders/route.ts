@@ -132,3 +132,24 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Failed to update order" }, { status: 500 });
   }
 }
+
+export async function DELETE() {
+  try {
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await Database.write((db) => {
+      db.orders = db.orders.filter(
+        (o) => !(o.userId === user.id && (o.status === "Fulfilled" || o.status === "Cancelled"))
+      );
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Failed to clear order history:", error);
+    return NextResponse.json({ error: error.message || "Failed to clear order history" }, { status: 500 });
+  }
+}
+
