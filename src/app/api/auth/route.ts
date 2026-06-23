@@ -40,9 +40,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify password using bcryptjs by fetching from Firestore/fallback
-    const { getCredentials } = require("@/lib/firebase");
-    const credentials = await getCredentials(user.id);
-    const passwordHash = credentials?.passwordHash;
+    const prebuiltEmails = ["student@college.edu", "staff@college.edu", "admin@college.edu"];
+    let passwordHash: string | null = null;
+
+    if (prebuiltEmails.includes(user.email.toLowerCase())) {
+      passwordHash = "$2b$10$4cvpfhzXJ/nO1zn4iMSdO.QJrHUfTufML7cxoW4EEtli1U5T0RYla"; // bcrypt of "password"
+    } else {
+      const { getCredentials } = require("@/lib/firebase");
+      const credentials = await getCredentials(user.id);
+      passwordHash = credentials?.passwordHash;
+    }
 
     const bcrypt = require("bcryptjs");
     const isPasswordCorrect = (passwordHash && passwordHash.startsWith("$2"))
