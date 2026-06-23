@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -91,7 +92,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center font-sans text-[#071d2e] relative overflow-hidden bg-[#f7f9ff]">
+    <div className="min-h-screen flex items-center justify-center font-sans text-foreground relative overflow-hidden bg-background">
+      {/* Theme Toggle Positioned in top-right */}
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
       {/* Decorative Background Accents */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
         <div className="absolute -top-[20%] -right-[10%] w-[60%] h-[60%] rounded-full bg-[#ff6b35]/20 blur-[100px]"></div>
@@ -100,7 +106,7 @@ export default function LoginPage() {
 
       {/* Main Content Container */}
       <main className="relative z-10 w-full max-w-md px-6 my-8">
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-white/50 shadow-[0_8px_32px_rgba(7,29,46,0.08)] p-8 md:p-10 flex flex-col items-center">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/50 dark:border-slate-800/80 shadow-[0_8px_32px_rgba(7,29,46,0.08)] p-8 md:p-10 flex flex-col items-center">
           {/* Logo Section */}
           <div className="mb-6 flex flex-col items-center text-center">
             <div className="w-20 h-20 rounded-full shadow-md bg-white p-2 flex items-center justify-center mb-3 border border-outline-variant/20">

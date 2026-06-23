@@ -1,9 +1,10 @@
 import { HeroScrollDemo } from "@/components/HeroScrollDemo";
 import Link from "next/link";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#f7f9ff] text-[#071d2e] font-sans flex flex-col">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
       {/* Decorative Background Accents */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
         <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-[#ff6b35]/10 blur-[100px]"></div>
@@ -17,7 +18,8 @@ export default function Home() {
             OrderOrbit
           </span>
         </div>
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
+          <ThemeToggle />
           <Link
             href="/login"
             className="px-6 py-2.5 rounded-full bg-primary hover:bg-surface-tint text-white font-semibold text-sm transition-all hover:scale-105 active:scale-95 shadow-sm"

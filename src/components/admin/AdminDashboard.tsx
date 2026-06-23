@@ -359,11 +359,11 @@ export default function AdminDashboard() {
     .reduce((sum, o) => sum + o.total, 0);
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8 bg-[#f7f9ff]">
+    <div className="min-h-screen pb-24 md:pb-8 bg-background">
       <header className="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-white shadow-sm border-b border-outline-variant/10">
         <div className="flex items-center gap-4">
           <span className="font-extrabold text-2xl text-primary tracking-tight">OrderOrbit</span>
-          <span className="px-3 py-1 bg-[#edf4ff] text-on-surface-variant rounded-full text-xs font-bold border border-outline-variant/10 hidden sm:block">
+          <span className="px-3 py-1 bg-surface-variant text-on-surface-variant rounded-full text-xs font-bold border border-outline-variant/10 hidden sm:block">
             Admin Portal
           </span>
         </div>
@@ -417,7 +417,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-outline-variant/20 text-center">
                   <div className="text-xs text-on-surface-variant">Daily Revenue</div>
-                  <div className="text-lg font-extrabold text-[#006a62]">
+                  <div className="text-lg font-extrabold text-primary">
                     ₹{(dailyTotalCents / 100).toFixed(2)}
                   </div>
                 </div>
@@ -465,7 +465,7 @@ export default function AdminDashboard() {
                             ? "bg-emerald-50/20 border-emerald-100 opacity-60"
                             : item.prepStatus === "Preparing"
                             ? "bg-sky-50/20 border-sky-200"
-                            : "bg-[#f7f9ff] border-outline-variant/15"
+                            : "bg-background border-outline-variant/15"
                         }`}
                       >
                         <div className="flex justify-between items-center mb-2">
@@ -497,7 +497,7 @@ export default function AdminDashboard() {
                           {item.prepStatus === "Preparing" && (
                             <button
                               onClick={() => handleUpdateItemStatus(orderId, item.id, "Completed")}
-                              className="bg-[#006a62] hover:bg-[#00504a] text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors"
+                              className="bg-primary hover:bg-[#00504a] text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition-colors"
                             >
                               Mark Done
                             </button>
@@ -655,7 +655,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                    <tr className="bg-background text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
                       <th className="p-4">Token # / Ref</th>
                       <th className="p-4">Time Placed</th>
                       <th className="p-4">Items Ordered</th>
@@ -782,7 +782,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                    <tr className="bg-background text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
                       <th className="p-4">Name</th>
                       <th className="p-4">Email</th>
                       <th className="p-4">Role</th>
@@ -844,7 +844,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#f7f9ff] text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
+                    <tr className="bg-background text-on-surface-variant text-xs font-bold uppercase tracking-wider border-b border-outline-variant/20">
                       <th className="p-4">Name</th>
                       <th className="p-4">Email</th>
                       <th className="p-4">Role</th>
