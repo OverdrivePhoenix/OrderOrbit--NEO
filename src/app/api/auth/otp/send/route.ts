@@ -115,10 +115,24 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("OTP Send error:", error.message || error);
-    return NextResponse.json(
-      { error: error.message || "Failed to send verification code." },
-      { status: 500 }
-    );
+    const raw: string = error.message || "";
+    console.error("OTP Send error:", raw);
+
+    // Map known SMTP / config errors to friendly messages
+    let friendly = "Failed to send verification code. Please try again.";
+
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      friendly = "Email service is not configured. Contact the administrator.";
+    } else if (raw.includes("535") || raw.includes("Username and Password not accepted")) {
+      friendly = "Email login failed. The Gmail App Password is incorrect — check Vercel environment variables.";
+    } else if (raw.includes("534") || raw.includes("Application-specific password")) {
+      friendly = "Gmail requires an App Password (not your regular password). Update GMAIL_APP_PASSWORD in Vercel settings.";
+    } else if (raw.includes("ECONNREFUSED") || raw.includes("ETIMEDOUT") || raw.includes("421")) {
+      friendly = "Could not reach Gmail servers. Please try again in a moment.";
+    } else if (raw.includes("not configured")) {
+      friendly = raw; // already user-friendly
+    }
+
+    return NextResponse.json({ error: friendly }, { status: 500 });
   }
 }
