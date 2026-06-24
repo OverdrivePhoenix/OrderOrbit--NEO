@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getFirestoreCollection, firestoreDb, saveCredentials, getCredentials } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,10 +21,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { getFirestoreCollection, firestoreDb, saveCredentials, getCredentials } = require("@/lib/firebase");
-    const { doc, updateDoc, getDoc } = require("firebase/firestore");
+    if (!firestoreDb) {
+      return NextResponse.json(
+        { error: "Database is unavailable. Please contact the administrator." },
+        { status: 500 }
+      );
+    }
 
-    // Find the user by email
+    // Find the user by email using safe collection helper
     const users = await getFirestoreCollection("users");
     const user = users.find(
       (u: any) => u.email.toLowerCase() === email.toLowerCase().trim()
@@ -55,42 +62,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Strategy 1: check the activationToken stored directly on the user document
-    const userRef = doc(firestoreDb, "users", user.id);
-    const userSnap = await getDoc(userRef);
-    const userData = userSnap.exists() ? userSnap.data() : null;
-    const tokenOnUser = userData?.activationToken;
-
-    // Strategy 2: check the credentials collection (encrypted)
-    const credentials = await getCredentials(user.id);
-    const tokenInCreds = credentials?.activationToken;
-
     const inputToken = activationToken.trim().toUpperCase();
+
+    // Check 1: token stored directly on the user document (most reliable, set during approval)
+    const tokenOnUser: string | undefined = user.activationToken;
+
+    // Check 2: token in the encrypted credentials collection (fallback)
+    let tokenInCreds: string | null = null;
+    try {
+      const credentials = await getCredentials(user.id);
+      tokenInCreds = credentials?.activationToken || null;
+    } catch (e) {
+      console.warn("Could not read credentials collection:", e);
+    }
+
     const validToken =
       (tokenOnUser && tokenOnUser.toUpperCase() === inputToken) ||
       (tokenInCreds && tokenInCreds.toUpperCase() === inputToken);
 
     if (!validToken) {
-      // Helpful debug info in server logs
-      console.error(`Activation failed for ${email}. Input: "${inputToken}", OnUser: "${tokenOnUser}", InCreds: "${tokenInCreds}"`);
+      console.error(
+        `Activation failed for ${email}. Input: "${inputToken}", OnUser: "${tokenOnUser}", InCreds: "${tokenInCreds}"`
+      );
       return NextResponse.json(
-        { error: "Invalid activation token. Check your email and try again, or contact the admin." },
+        { error: "Invalid activation token. Check your email and try again." },
         { status: 400 }
       );
     }
 
     // Hash the new password
-    const bcrypt = require("bcryptjs");
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Save password hash and clear the activation token
-    await saveCredentials(user.id, {
-      passwordHash: hashedPassword,
-      activationToken: null,
-    });
+    // Save password hash and clear activation token
+    try {
+      await saveCredentials(user.id, {
+        passwordHash: hashedPassword,
+        activationToken: null,
+      });
+    } catch (credErr) {
+      console.warn("Could not save to credentials collection:", credErr);
+    }
 
-    // Mark user as active and clear activationToken from user doc
-    await updateDoc(userRef, {
+    // Mark user as active and remove token from user doc
+    await updateDoc(doc(firestoreDb, "users", user.id), {
       status: "active",
       activationToken: null,
     });
@@ -107,6 +121,9 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
