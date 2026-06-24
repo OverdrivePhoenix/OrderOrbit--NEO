@@ -67,9 +67,15 @@ export async function PATCH(req: NextRequest) {
 
       const activationToken = `ACTIV-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-      // Save encrypted activation token in Firestore
-      await saveCredentials(userId, { activationToken });
-      await updateDoc(userRef, { status: "approved" });
+      // Save encrypted activation token in credentials collection
+      try {
+        await saveCredentials(userId, { activationToken });
+      } catch (credErr) {
+        console.warn("Could not save to credentials collection, storing on user doc only:", credErr);
+      }
+
+      // Also store plaintext token directly on the user document as a reliable fallback
+      await updateDoc(userRef, { status: "approved", activationToken });
 
       // Send activation email — non-blocking so approval still succeeds even if email fails
       let emailSent = false;
