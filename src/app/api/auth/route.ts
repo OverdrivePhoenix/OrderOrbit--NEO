@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       (u: any) => u.email.toLowerCase() === email.toLowerCase()
     );
 
-    if (email.toLowerCase() === "admin@college.edu" && password === "admin123") {
+    if (email.toLowerCase().trim() === "admin@college.edu" && password.trim() === "admin123") {
       user = { id: "u_admin_test", email: "admin@college.edu", name: "System Admin", role: "admin", department: "IT", status: "active", walletBalance: 0 };
       const token = await signToken(user);
       const response = NextResponse.json({ success: true, user });
