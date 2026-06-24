@@ -8,8 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "predeploy": "next build && next export",
-    "deploy": "gh-pages -d out"
+    "deploy": "gh-pages -d gh-pages-site"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
