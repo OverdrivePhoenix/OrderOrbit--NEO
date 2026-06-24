@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Database } from "@/data/db";
 import { normalizeEmail } from "@/lib/auth";
 import { jwtVerify } from "jose";
 import crypto from "crypto";
-import { getFirestoreCollection, firestoreDb, sanitizeForFirestore } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { adminGetCollection, adminSetDoc } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,14 +26,17 @@ export async function POST(req: NextRequest) {
     try {
       const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "fallback");
       const { payload } = await jwtVerify(otpToken, secretKey);
-      
+
       if (payload.email !== email.toLowerCase().trim()) {
         throw new Error("Email mismatch");
       }
-      
-      const expectedHash = crypto.createHash("sha256").update(otp + (process.env.JWT_SECRET || "fallback")).digest("hex");
+
+      const expectedHash = crypto
+        .createHash("sha256")
+        .update(otp + (process.env.JWT_SECRET || "fallback"))
+        .digest("hex");
       if (payload.otpHash !== expectedHash) {
-         throw new Error("Invalid code");
+        throw new Error("Invalid code");
       }
     } catch (err) {
       return NextResponse.json(
@@ -45,20 +46,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (role !== "student" && role !== "staff" && role !== "admin") {
-      return NextResponse.json(
-        { error: "Invalid role specified." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid role specified." }, { status: 400 });
     }
 
     if (role === "student" && !studentId) {
-      return NextResponse.json(
-        { error: "Student ID is required for student accounts." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Student ID is required for student accounts." }, { status: 400 });
     }
 
-    const users = await getFirestoreCollection("users");
+    // Check for duplicate — Admin SDK bypasses Security Rules
+    const users = await adminGetCollection("users");
     const normalizedNewEmail = normalizeEmail(email);
     const existingUser = users.find(
       (u: any) => normalizeEmail(u.email) === normalizedNewEmail
@@ -71,27 +67,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newUser = {
+    const newUser: Record<string, any> = {
       id: `u_${role}_${Math.random().toString(36).substring(2, 9)}`,
       email: email.toLowerCase(),
       name,
       role,
-      status: "pending" as const,
+      status: "pending",
       department,
-      studentId: role === "student" ? studentId : undefined,
-      walletBalance: role === "student" ? 0 : undefined,
+      createdAt: new Date().toISOString(),
     };
 
-    try {
-      await setDoc(doc(firestoreDb, "users", newUser.id), sanitizeForFirestore(newUser));
-    } catch (dbError: any) {
-      if (dbError.code === "permission-denied") {
-        return NextResponse.json({ 
-          error: "Database permission denied. Please update your Firestore Security Rules to allow writes to the 'users' collection." 
-        }, { status: 500 });
-      }
-      throw dbError;
+    if (role === "student") {
+      newUser.studentId = studentId;
+      newUser.walletBalance = 0;
     }
+
+    // Admin SDK write — no Security Rules blocking
+    await adminSetDoc("users", newUser.id, newUser);
 
     return NextResponse.json({
       success: true,

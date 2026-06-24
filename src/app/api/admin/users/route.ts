@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken, getSessionUser } from "@/lib/auth";
-import { getFirestoreCollection, getCredentials, firestoreDb, saveCredentials, deleteCredentials } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { getSessionUser } from "@/lib/auth";
+import {
+  adminGetCollection,
+  adminGetDoc,
+  adminSetDoc,
+  adminUpdateDoc,
+  adminDeleteDoc,
+} from "@/lib/firebase-admin";
+import { getCredentials, saveCredentials, deleteCredentials } from "@/lib/firebase";
 import { sendActivationEmail } from "@/lib/email";
 
 async function checkAdmin(req: NextRequest) {
@@ -17,16 +23,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const users = await getFirestoreCollection("users");
+    const users = await adminGetCollection("users");
 
-    // Return all users for admin review (excluding password hashes and retrieving activation tokens from Firestore/fallback)
+    // Attach activation tokens for approved users
     const sanitizedUsers = await Promise.all(
-      users.map(async ({ password_hash, activationToken, ...u }: any) => {
+      users.map(async ({ password_hash, ...u }: any) => {
         if (u.status === "approved") {
           const creds = await getCredentials(u.id);
           return {
             ...u,
-            activationToken: creds?.activationToken || null,
+            activationToken: u.activationToken || creds?.activationToken || null,
           };
         }
         return u;
@@ -46,19 +52,20 @@ export async function PATCH(req: NextRequest) {
     if (!admin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
     const { userId, action } = await req.json();
-    if (!userId || !action || (action !== "approve" && action !== "reject" && action !== "suspend" && action !== "unsuspend" && action !== "revoke")) {
+    if (
+      !userId ||
+      !action ||
+      !["approve", "reject", "suspend", "unsuspend", "revoke"].includes(action)
+    ) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
 
-    const userRef = doc(firestoreDb, "users", userId);
-    const userSnap = await getDoc(userRef);
-
-    if (!userSnap.exists()) {
+    const user = await adminGetDoc("users", userId);
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
-    const user = userSnap.data();
 
     if (action === "approve") {
       if (user.status !== "pending") {
@@ -67,17 +74,20 @@ export async function PATCH(req: NextRequest) {
 
       const activationToken = `ACTIV-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-      // Save encrypted activation token in credentials collection
+      // Save encrypted token in credentials collection
       try {
         await saveCredentials(userId, { activationToken });
-      } catch (credErr) {
-        console.warn("Could not save to credentials collection, storing on user doc only:", credErr);
+      } catch (e) {
+        console.warn("Could not save to credentials collection:", e);
       }
 
-      // Also store plaintext token directly on the user document as a reliable fallback
-      await updateDoc(userRef, { status: "approved", activationToken });
+      // Store token directly on user doc as reliable fallback + update status
+      await adminUpdateDoc("users", userId, {
+        status: "approved",
+        activationToken,
+      });
 
-      // Send activation email — non-blocking so approval still succeeds even if email fails
+      // Email the activation token
       let emailSent = false;
       let emailError = "";
       try {
@@ -92,47 +102,36 @@ export async function PATCH(req: NextRequest) {
         success: true,
         message: emailSent
           ? `User approved. Activation email sent to ${user.email}.`
-          : `User approved, but email failed to send: ${emailError}. Token: ${activationToken}`,
+          : `User approved. Email failed (${emailError}). Token: ${activationToken}`,
         activationToken,
         emailSent,
       });
-    } else if (action === "reject") {
-      // Delete user credentials document from Firestore/fallback
-      await deleteCredentials(userId);
-      await deleteDoc(userRef);
-
-      return NextResponse.json({
-        success: true,
-        message: "User registration request rejected and deleted.",
-      });
-    } else if (action === "suspend") {
-      await updateDoc(userRef, { status: "suspended" });
-      return NextResponse.json({
-        success: true,
-        message: "User account suspended successfully.",
-      });
-    } else if (action === "unsuspend") {
-      await updateDoc(userRef, { status: "active" });
-      return NextResponse.json({
-        success: true,
-        message: "User account reactivated successfully.",
-      });
-    } else if (action === "revoke") {
-      // Delete credentials from Firestore/fallback
-      await deleteCredentials(userId);
-      await updateDoc(userRef, { status: "pending" });
-      return NextResponse.json({
-        success: true,
-        message: "User access revoked successfully.",
-      });
     }
+
+    if (action === "reject") {
+      await deleteCredentials(userId);
+      await adminDeleteDoc("users", userId);
+      return NextResponse.json({ success: true, message: "User registration rejected and deleted." });
+    }
+
+    if (action === "suspend") {
+      await adminUpdateDoc("users", userId, { status: "suspended" });
+      return NextResponse.json({ success: true, message: "User account suspended." });
+    }
+
+    if (action === "unsuspend") {
+      await adminUpdateDoc("users", userId, { status: "active" });
+      return NextResponse.json({ success: true, message: "User account reactivated." });
+    }
+
+    if (action === "revoke") {
+      await deleteCredentials(userId);
+      await adminUpdateDoc("users", userId, { status: "pending" });
+      return NextResponse.json({ success: true, message: "User access revoked." });
+    }
+
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
-    if (error.code === "permission-denied") {
-      return NextResponse.json({ 
-        error: "Database permission denied. Please update your Firestore Security Rules to allow writes to the 'users' collection." 
-      }, { status: 500 });
-    }
     console.error("Admin Users PATCH error:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }

@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { signToken } from "@/lib/auth";
+import { adminGetCollection } from "@/lib/firebase-admin";
+import { getCredentials } from "@/lib/firebase";
+import bcrypt from "bcryptjs";
 
-// Hardcoded fallback admin account that works even when Firestore is unreachable
-const FALLBACK_ADMIN = {
-  id: "u_admin_test",
-  email: "admin@college.edu",
-  name: "System Admin",
-  role: "admin" as const,
-  department: "IT",
-  status: "active",
-  walletBalance: 0,
-};
-
-// Hardcoded demo accounts with their passwords (for when Firestore is blocked)
+// Hardcoded demo accounts — work even when Firestore has no data yet
 const DEMO_ACCOUNTS: Record<string, { password: string; user: any }> = {
   "admin@college.edu": {
     password: "admin123",
-    user: FALLBACK_ADMIN,
+    user: {
+      id: "u_admin_test",
+      email: "admin@college.edu",
+      name: "System Admin",
+      role: "admin",
+      department: "IT",
+      status: "active",
+      walletBalance: 0,
+    },
   },
   "student@college.edu": {
     password: "password",
@@ -57,14 +57,11 @@ export async function POST(req: NextRequest) {
 
     const emailKey = email.toLowerCase().trim();
 
-    // Check demo/fallback accounts first — works even when Firestore is down
+    // Demo/fallback accounts — always work
     const demoAccount = DEMO_ACCOUNTS[emailKey];
     if (demoAccount) {
       if (password !== demoAccount.password) {
-        return NextResponse.json(
-          { error: "Invalid email or password" },
-          { status: 401 }
-        );
+        return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
       }
       const token = await signToken(demoAccount.user);
       const response = NextResponse.json({ success: true, user: demoAccount.user });
@@ -78,18 +75,12 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    // For real registered users — look them up in Firestore
-    const { getFirestoreCollection, getCredentials } = require("@/lib/firebase");
-    const users = await getFirestoreCollection("users");
-    const user = users.find(
-      (u: any) => u.email.toLowerCase() === emailKey
-    );
+    // Real registered users — look up via Admin SDK (bypasses Firestore rules)
+    const users = await adminGetCollection("users");
+    const user = users.find((u: any) => u.email.toLowerCase() === emailKey);
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Invalid email or password" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     if (user.status === "pending") {
@@ -114,26 +105,16 @@ export async function POST(req: NextRequest) {
     }
 
     const creds = await getCredentials(user.id);
-    const storeHash = creds?.passwordHash;
-
-    if (!storeHash) {
-      return NextResponse.json(
-        { error: "Account credentials not found. Please contact admin." },
-        { status: 401 }
-      );
+    if (!creds?.passwordHash) {
+      return NextResponse.json({ error: "Account credentials not found. Please contact admin." }, { status: 401 });
     }
 
-    const bcrypt = require("bcryptjs");
-    const isValid = await bcrypt.compare(password, storeHash);
+    const isValid = await bcrypt.compare(password, creds.passwordHash);
     if (!isValid) {
-      return NextResponse.json(
-        { error: "Invalid email or password" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     const token = await signToken(user);
-
     const response = NextResponse.json({
       success: true,
       user: {
@@ -145,7 +126,6 @@ export async function POST(req: NextRequest) {
         walletBalance: user.walletBalance || 0,
       },
     });
-
     response.cookies.set("auth_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -153,14 +133,10 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 2,
       path: "/",
     });
-
     return response;
   } catch (error: any) {
     console.error("Login API error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 

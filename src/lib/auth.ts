@@ -51,24 +51,21 @@ export async function getSessionUser() {
     const verified = await verifyToken(token);
     if (!verified) return null;
 
-    // Trust hardcoded fallback accounts directly from the JWT — they don't exist in Firestore
+    // Trust hardcoded fallback accounts directly from the JWT
     if (FALLBACK_USER_IDS.has(verified.id)) {
       return verified;
     }
 
-    // For real registered users: check Firestore for real-time status (suspension, etc.)
+    // For real registered users: check Firestore via Admin SDK (bypasses rules)
     try {
-      const { firestoreDb } = require("@/lib/firebase");
-      const { doc, getDoc } = require("firebase/firestore");
-      const userRef = doc(firestoreDb, "users", verified.id);
-      const userSnap = await getDoc(userRef);
-      const user = userSnap.exists() ? userSnap.data() : null;
+      const { adminGetDoc } = require("@/lib/firebase-admin");
+      const user = await adminGetDoc("users", verified.id);
       if (!user || user.status !== "active") {
         return null;
       }
     } catch (fsError) {
-      // If Firestore is unreachable, trust the JWT rather than locking everyone out
-      console.warn("Firestore unreachable in getSessionUser, trusting JWT:", fsError);
+      // If Admin SDK also fails, trust the JWT rather than locking everyone out
+      console.warn("Admin SDK unavailable in getSessionUser, trusting JWT:", fsError);
     }
 
     return verified;
@@ -76,6 +73,7 @@ export async function getSessionUser() {
     return null;
   }
 }
+
 
 export async function signOrders(orders: any[]) {
   const token = await new SignJWT({ orders })
