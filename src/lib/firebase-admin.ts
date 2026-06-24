@@ -3,12 +3,12 @@
  * Uses a service account key so it bypasses ALL Firestore Security Rules.
  * Never import this in client components.
  */
-import * as admin from "firebase-admin";
-import { getApps } from "firebase-admin/app";
+import { initializeApp, getApps, getApp, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
 function getAdminApp() {
   if (getApps().length > 0) {
-    return getApps()[0];
+    return getApp();
   }
 
   const projectId =
@@ -23,22 +23,17 @@ function getAdminApp() {
 
   if (clientEmail && privateKey) {
     // Full service account — bypasses all Firestore Security Rules
-    return admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
+    return initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
     });
   }
 
-  // Fallback: application default credentials (works on GCP/Firebase Hosting)
-  return admin.initializeApp({ projectId });
+  // Fallback: unauthenticated (will fail on protected collections, but at least won't crash at init)
+  return initializeApp({ projectId });
 }
 
 export function getAdminDb() {
-  const app = getAdminApp();
-  return admin.firestore(app);
+  return getFirestore(getAdminApp());
 }
 
 /**
@@ -107,7 +102,14 @@ export async function adminDeleteDoc(colName: string, docId: string): Promise<vo
 function sanitize(obj: Record<string, any>): Record<string, any> {
   const clean: Record<string, any> = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (v !== undefined) clean[k] = v === null ? null : typeof v === "object" && !Array.isArray(v) ? sanitize(v) : v;
+    if (v !== undefined) {
+      clean[k] =
+        v === null
+          ? null
+          : typeof v === "object" && !Array.isArray(v)
+          ? sanitize(v)
+          : v;
+    }
   }
   return clean;
 }
