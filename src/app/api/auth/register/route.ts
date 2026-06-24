@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Database } from "@/data/db";
 import { normalizeEmail } from "@/lib/auth";
+import { jwtVerify } from "jose";
+import crypto from "crypto";
+import { getFirestoreCollection, firestoreDb } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,9 +26,6 @@ export async function POST(req: NextRequest) {
 
     // Stateless OTP verification using JWT
     try {
-      const { jwtVerify } = require("jose");
-      const crypto = require("crypto");
-      
       const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "fallback");
       const { payload } = await jwtVerify(otpToken, secretKey);
       
@@ -56,9 +57,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    const { getFirestoreCollection, firestoreDb } = require("@/lib/firebase");
-    const { doc, setDoc } = require("firebase/firestore");
 
     const users = await getFirestoreCollection("users");
     const normalizedNewEmail = normalizeEmail(email);

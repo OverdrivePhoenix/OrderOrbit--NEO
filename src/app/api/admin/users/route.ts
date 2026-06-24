@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Database } from "@/data/db";
 import { verifyToken, getSessionUser } from "@/lib/auth";
+import { getFirestoreCollection, getCredentials, firestoreDb, saveCredentials, deleteCredentials } from "@/lib/firebase";
+import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+
 async function checkAdmin(req: NextRequest) {
   const user = await getSessionUser();
   if (!user || user.role !== "admin") return null;
@@ -14,7 +17,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { getFirestoreCollection, getCredentials } = require("@/lib/firebase");
     const users = await getFirestoreCollection("users");
 
     // Return all users for admin review (excluding password hashes and retrieving activation tokens from Firestore/fallback)
@@ -43,13 +45,11 @@ export async function PATCH(req: NextRequest) {
     const admin = await checkAdmin(req);
     if (!admin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }    const { userId, action } = await req.json();
+    }
+    const { userId, action } = await req.json();
     if (!userId || !action || (action !== "approve" && action !== "reject" && action !== "suspend" && action !== "unsuspend" && action !== "revoke")) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
-
-    const { firestoreDb, saveCredentials, deleteCredentials } = require("@/lib/firebase");
-    const { doc, getDoc, updateDoc, deleteDoc } = require("firebase/firestore");
 
     const userRef = doc(firestoreDb, "users", userId);
     const userSnap = await getDoc(userRef);
