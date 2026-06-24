@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [debugOtp, setDebugOtp] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const handleSendOtp = async (isResend = false) => {
@@ -42,7 +43,13 @@ export default function RegisterPage() {
       setOtpSent(true);
       setOtp(""); // clear previous entry
       if (data.debugOtp) {
+        // Demo fallback — email not configured, show on screen
         setDebugOtp(data.debugOtp);
+        setEmailSent(false);
+      } else {
+        // Real email was sent
+        setDebugOtp("");
+        setEmailSent(true);
       }
       setSuccessMsg(isResend ? "New code generated!" : "Code generated! Enter it below.");
       // Start a 30-second resend cooldown
@@ -202,10 +209,17 @@ export default function RegisterPage() {
                   Verification Code
                 </label>
 
-                {/* Always-visible OTP debug box */}
-                {debugOtp && (
-                  <div className="w-full p-3 rounded-xl bg-primary/5 border border-primary/30 text-center">
-                    <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">Your verification code</p>
+                {emailSent && !debugOtp ? (
+                  /* Real email was sent — prompt user to check inbox */
+                  <div className="w-full p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-center">
+                    <span className="material-symbols-outlined text-blue-400 text-2xl block mb-1">mark_email_read</span>
+                    <p className="text-xs font-semibold text-blue-300">Code sent to <strong>{email}</strong></p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Check your inbox (and spam folder). Expires in 5 minutes.</p>
+                  </div>
+                ) : debugOtp ? (
+                  /* Demo fallback — display code on screen */
+                  <div className="w-full p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
+                    <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wide mb-1">Demo mode — email not configured</p>
                     <code
                       className="font-mono text-2xl font-black text-primary tracking-[0.25em] select-all cursor-pointer"
                       onClick={() => setOtp(debugOtp)}
@@ -213,9 +227,9 @@ export default function RegisterPage() {
                     >
                       {debugOtp}
                     </code>
-                    <p className="text-[10px] text-muted-foreground mt-1">(click to auto-fill)</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Click the code to auto-fill ↑</p>
                   </div>
-                )}
+                ) : null}
 
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
@@ -243,7 +257,7 @@ export default function RegisterPage() {
                   >
                     {resendCooldown > 0
                       ? `Resend code in ${resendCooldown}s`
-                      : otpLoading ? "Generating..." : "Resend code"}
+                      : otpLoading ? "Sending..." : "Resend code"}
                   </button>
                 </div>
               </div>
