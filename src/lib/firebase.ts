@@ -234,58 +234,65 @@ interface OtpEntry {
   expiresAt: number;
 }
 
+// Module-level in-memory store (only reliable within the same serverless instance)
 const localOtps = new Map<string, OtpEntry>();
 
 /**
  * Saves a 6-digit OTP for an email, expiring in 5 minutes.
+ * Always uses the lowercase-trimmed email as the key for consistency.
  */
 export async function saveOtp(email: string, otp: string): Promise<void> {
-  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes from now
-  const normalizedEmail = email.toLowerCase().trim();
+  // CRITICAL: key must always be identical between save and verify
+  const key = email.toLowerCase().trim();
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+  // Always also store in memory as a same-instance fallback
+  localOtps.set(key, { otp, expiresAt });
 
   if (firestoreDb) {
     try {
-      const docRef = doc(firestoreDb, "otps", normalizedEmail);
+      const docRef = doc(firestoreDb, "otps", key);
       await setDoc(docRef, { otp, expiresAt });
-      return;
     } catch (error) {
-      console.error("Error saving OTP to Firestore:", error);
+      console.error("Error saving OTP to Firestore (memory fallback active):", error);
     }
   }
-
-  // Fallback mode: store in memory
-  localOtps.set(normalizedEmail, { otp, expiresAt });
 }
 
 /**
  * Verifies and consumes the OTP for an email.
+ * Checks Firestore first, then falls back to in-memory Map.
  * Returns true if valid, false otherwise.
  */
 export async function verifyOtp(email: string, otp: string): Promise<boolean> {
-  const normalizedEmail = email.toLowerCase().trim();
+  // CRITICAL: must use same normalization as saveOtp
+  const key = email.toLowerCase().trim();
   const now = Date.now();
 
   if (firestoreDb) {
     try {
-      const docRef = doc(firestoreDb, "otps", normalizedEmail);
+      const docRef = doc(firestoreDb, "otps", key);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data && data.otp === otp && data.expiresAt > now) {
-          // Delete/consume the OTP
-          await deleteDoc(docRef);
+          await deleteDoc(docRef); // consume
+          localOtps.delete(key);  // also clear memory
           return true;
         }
+        // Found but wrong code or expired
+        return false;
       }
+      // Not in Firestore — fall through to memory (same-instance request)
     } catch (error) {
-      console.error("Error verifying OTP from Firestore:", error);
+      console.error("Error verifying OTP from Firestore (trying memory fallback):", error);
     }
   }
 
-  // Fallback: check in-memory Map
-  const entry = localOtps.get(normalizedEmail);
+  // In-memory fallback (works when save and verify hit the same serverless instance)
+  const entry = localOtps.get(key);
   if (entry && entry.otp === otp && entry.expiresAt > now) {
-    localOtps.delete(normalizedEmail);
+    localOtps.delete(key);
     return true;
   }
 

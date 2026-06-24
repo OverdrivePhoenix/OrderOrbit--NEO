@@ -19,10 +19,11 @@ export default function RegisterPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [debugOtp, setDebugOtp] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (isResend = false) => {
     if (!email) {
-      setError("Please enter your institutional email to receive a verification code.");
+      setError("Please enter your email address first.");
       return;
     }
     setOtpLoading(true);
@@ -36,13 +37,22 @@ export default function RegisterPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to send verification code.");
+        throw new Error(data.error || "Failed to generate verification code.");
       }
       setOtpSent(true);
+      setOtp(""); // clear previous entry
       if (data.debugOtp) {
         setDebugOtp(data.debugOtp);
       }
-      setSuccessMsg("Verification code sent! Please check your inbox (or use the demo code below).");
+      setSuccessMsg(isResend ? "New code generated!" : "Code generated! Enter it below.");
+      // Start a 30-second resend cooldown
+      setResendCooldown(30);
+      const timer = setInterval(() => {
+        setResendCooldown((c) => {
+          if (c <= 1) { clearInterval(timer); return 0; }
+          return c - 1;
+        });
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
@@ -177,20 +187,36 @@ export default function RegisterPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={handleSendOtp}
+                  onClick={() => handleSendOtp(false)}
                   disabled={otpLoading || !email || otpSent}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-4 rounded-xl text-xs transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shrink-0"
                 >
-                  {otpLoading ? "Sending..." : otpSent ? "Code Sent" : "Send OTP"}
+                  {otpLoading ? "Generating..." : otpSent ? "✓ Sent" : "Send OTP"}
                 </button>
               </div>
             </div>
 
             {otpSent && (
-              <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
                 <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Verification Code (OTP)
+                  Verification Code
                 </label>
+
+                {/* Always-visible OTP debug box */}
+                {debugOtp && (
+                  <div className="w-full p-3 rounded-xl bg-primary/5 border border-primary/30 text-center">
+                    <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mb-1">Your verification code</p>
+                    <code
+                      className="font-mono text-2xl font-black text-primary tracking-[0.25em] select-all cursor-pointer"
+                      onClick={() => setOtp(debugOtp)}
+                      title="Click to auto-fill"
+                    >
+                      {debugOtp}
+                    </code>
+                    <p className="text-[10px] text-muted-foreground mt-1">(click to auto-fill)</p>
+                  </div>
+                )}
+
                 <div className="relative group">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
                     key
@@ -202,14 +228,24 @@ export default function RegisterPage() {
                     maxLength={6}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                     className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all font-mono font-bold tracking-widest text-center"
-                    placeholder="123456"
+                    placeholder="Enter 6-digit code"
+                    autoFocus
                   />
                 </div>
-                {debugOtp && (
-                  <p className="text-[10px] text-primary font-bold mt-1.5 bg-primary/5 p-2 rounded-xl border border-primary/20 text-center">
-                    [Demo Debug] Verification code: <code className="font-mono text-xs select-all bg-card px-1.5 py-0.5 rounded border border-primary/20">{debugOtp}</code>
-                  </p>
-                )}
+
+                {/* Resend button */}
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => handleSendOtp(true)}
+                    disabled={otpLoading || resendCooldown > 0}
+                    className="text-xs text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors cursor-pointer bg-transparent border-none"
+                  >
+                    {resendCooldown > 0
+                      ? `Resend code in ${resendCooldown}s`
+                      : otpLoading ? "Generating..." : "Resend code"}
+                  </button>
+                </div>
               </div>
             )}
 
