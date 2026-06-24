@@ -15,10 +15,45 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [debugOtp, setDebugOtp] = useState("");
+
+  const handleSendOtp = async () => {
+    if (!email) {
+      setError("Please enter your institutional email to receive a verification code.");
+      return;
+    }
+    setOtpLoading(true);
+    setError("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch("/api/auth/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send verification code.");
+      }
+      setOtpSent(true);
+      if (data.debugOtp) {
+        setDebugOtp(data.debugOtp);
+      }
+      setSuccessMsg("Verification code sent! Please check your inbox (or use the demo code below).");
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !role || !department) {
-      setError("Please fill in all required fields.");
+    if (!name || !email || !role || !department || !otp) {
+      setError("Please fill in all required fields and enter the verification code.");
       return;
     }
     if (role === "student" && !studentId) {
@@ -40,6 +75,7 @@ export default function RegisterPage() {
           role,
           department,
           studentId: role === "student" ? studentId : undefined,
+          otp,
         }),
       });
 
@@ -124,20 +160,58 @@ export default function RegisterPage() {
               <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                 Institutional Email
               </label>
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
-                  mail
-                </span>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all"
-                  placeholder="student@college.edu or staff@college.edu"
-                />
+              <div className="flex gap-2">
+                <div className="relative group flex-grow">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
+                    mail
+                  </span>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    disabled={otpSent}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all disabled:opacity-70"
+                    placeholder="student@college.edu or staff@college.edu"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={otpLoading || !email || otpSent}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-4 rounded-xl text-xs transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shrink-0"
+                >
+                  {otpLoading ? "Sending..." : otpSent ? "Code Sent" : "Send OTP"}
+                </button>
               </div>
             </div>
+
+            {otpSent && (
+              <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Verification Code (OTP)
+                </label>
+                <div className="relative group">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-lg">
+                    key
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={otp}
+                    maxLength={6}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-sm shadow-sm transition-all font-mono font-bold tracking-widest text-center"
+                    placeholder="123456"
+                  />
+                </div>
+                {debugOtp && (
+                  <p className="text-[10px] text-primary font-bold mt-1.5 bg-primary/5 p-2 rounded-xl border border-primary/20 text-center">
+                    [Demo Debug] Verification code: <code className="font-mono text-xs select-all bg-card px-1.5 py-0.5 rounded border border-primary/20">{debugOtp}</code>
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">

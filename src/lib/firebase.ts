@@ -174,6 +174,29 @@ export async function getFirestoreCollection(colName: string): Promise<any[]> {
 }
 
 /**
+ * Sanitizes an object recursively to be compatible with Firestore.
+ * Removes any undefined values or replaces them with null.
+ */
+function sanitizeForFirestore(val: any): any {
+  if (val === undefined || val === null) {
+    return null;
+  }
+  if (Array.isArray(val)) {
+    return val.map(sanitizeForFirestore);
+  }
+  if (typeof val === "object") {
+    const clean: Record<string, any> = {};
+    for (const key of Object.keys(val)) {
+      if (val[key] !== undefined) {
+        clean[key] = sanitizeForFirestore(val[key]);
+      }
+    }
+    return clean;
+  }
+  return val;
+}
+
+/**
  * Syncs an array of items to a Firestore collection, handling additions, updates, and deletions.
  */
 export async function syncCollectionToFirestore(colName: string, items: any[]): Promise<void> {
@@ -186,10 +209,10 @@ export async function syncCollectionToFirestore(colName: string, items: any[]): 
 
     const batch = writeBatch(firestoreDb);
 
-    // Set/update current items
+    // Set/update current items (sanitized of undefined properties)
     for (const item of items) {
       const docRef = doc(firestoreDb, colName, item.id);
-      batch.set(docRef, item);
+      batch.set(docRef, sanitizeForFirestore(item));
     }
 
     // Delete items no longer present
@@ -204,4 +227,67 @@ export async function syncCollectionToFirestore(colName: string, items: any[]): 
   } catch (error) {
     console.error(`Error syncing collection ${colName} to Firestore:`, error);
   }
+}
+
+interface OtpEntry {
+  otp: string;
+  expiresAt: number;
+}
+
+const localOtps = new Map<string, OtpEntry>();
+
+/**
+ * Saves a 6-digit OTP for an email, expiring in 5 minutes.
+ */
+export async function saveOtp(email: string, otp: string): Promise<void> {
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes from now
+  const normalizedEmail = email.toLowerCase().trim();
+
+  if (firestoreDb) {
+    try {
+      const docRef = doc(firestoreDb, "otps", normalizedEmail);
+      await setDoc(docRef, { otp, expiresAt });
+      return;
+    } catch (error) {
+      console.error("Error saving OTP to Firestore:", error);
+    }
+  }
+
+  // Fallback mode: store in memory
+  localOtps.set(normalizedEmail, { otp, expiresAt });
+}
+
+/**
+ * Verifies and consumes the OTP for an email.
+ * Returns true if valid, false otherwise.
+ */
+export async function verifyOtp(email: string, otp: string): Promise<boolean> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const now = Date.now();
+
+  if (firestoreDb) {
+    try {
+      const docRef = doc(firestoreDb, "otps", normalizedEmail);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && data.otp === otp && data.expiresAt > now) {
+          // Delete/consume the OTP
+          await deleteDoc(docRef);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("Error verifying OTP from Firestore:", error);
+    }
+  }
+
+  // Fallback: check in-memory Map
+  const entry = localOtps.get(normalizedEmail);
+  if (entry && entry.otp === otp && entry.expiresAt > now) {
+    localOtps.delete(normalizedEmail);
+    return true;
+  }
+
+  return false;
 }

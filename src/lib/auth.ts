@@ -76,3 +76,19 @@ export async function verifyOrders(token: string) {
   }
 }
 
+/**
+ * Normalizes an email address to a canonical format.
+ * For Gmail addresses, this removes all dots and any "+" suffix from the local part.
+ */
+export function normalizeEmail(email: string): string {
+  const normalized = email.toLowerCase().trim();
+  if (normalized.endsWith("@gmail.com")) {
+    const [localPart, domain] = normalized.split("@");
+    // Remove dots and everything after '+'
+    const cleanLocal = localPart.split("+")[0].replace(/\./g, "");
+    return `${cleanLocal}@${domain}`;
+  }
+  return normalized;
+}
+
+

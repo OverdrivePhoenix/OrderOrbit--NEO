@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Database } from "@/data/db";
+import { normalizeEmail } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, name, role, department, studentId } = await req.json();
+    const { email, name, role, department, studentId, otp } = await req.json();
 
-    if (!email || !name || !role || !department) {
+    if (!email || !name || !role || !department || !otp) {
       return NextResponse.json(
-        { error: "Email, name, role, and department are required." },
+        { error: "Email, name, role, department, and verification code are required." },
+        { status: 400 }
+      );
+    }
+
+    // Verify OTP first
+    const { verifyOtp } = require("@/lib/firebase");
+    const isOtpValid = await verifyOtp(email, otp);
+    if (!isOtpValid) {
+      return NextResponse.json(
+        { error: "Invalid or expired verification code." },
         { status: 400 }
       );
     }
@@ -27,8 +38,9 @@ export async function POST(req: NextRequest) {
     }
 
     const db = await Database.read();
+    const normalizedNewEmail = normalizeEmail(email);
     const existingUser = db.users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase()
+      (u) => normalizeEmail(u.email) === normalizedNewEmail
     );
 
     if (existingUser) {
