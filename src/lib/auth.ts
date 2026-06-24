@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { User } from "@/data/db";
+import { adminGetDoc } from "@/lib/firebase-admin";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "default-super-secret-key-that-is-very-long"
@@ -43,6 +44,10 @@ const FALLBACK_USER_IDS = new Set([
   "u_staff_demo",
 ]);
 
+// In-memory TTL cache for Firestore user-status lookups (60s TTL)
+const userStatusCache = new Map<string, { active: boolean; expiresAt: number }>();
+const USER_STATUS_TTL_MS = 60_000; // 60 seconds
+
 export async function getSessionUser() {
   try {
     const cookieStore = await cookies();
@@ -56,11 +61,19 @@ export async function getSessionUser() {
       return verified;
     }
 
+    // Check in-memory cache first to avoid repeated Firestore calls
+    const cached = userStatusCache.get(verified.id);
+    const now = Date.now();
+    if (cached && cached.expiresAt > now) {
+      return cached.active ? verified : null;
+    }
+
     // For real registered users: check Firestore via Admin SDK (bypasses rules)
     try {
-      const { adminGetDoc } = require("@/lib/firebase-admin");
       const user = await adminGetDoc("users", verified.id);
-      if (!user || user.status !== "active") {
+      const isActive = user?.status === "active";
+      userStatusCache.set(verified.id, { active: isActive, expiresAt: now + USER_STATUS_TTL_MS });
+      if (!isActive) {
         return null;
       }
     } catch (fsError) {

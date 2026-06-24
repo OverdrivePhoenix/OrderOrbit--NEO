@@ -1,27 +1,17 @@
-import { HeroScrollDemo } from "@/components/HeroScrollDemo";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
-import LineWaves from "@/components/LineWaves";
+import { DynamicLineWaves, DynamicHeroScroll } from "@/components/DynamicHome";
+
+export const metadata = {
+  title: "OrderOrbit - College Canteen Pre-Order",
+  description: "Modern campus dining pre-order and feedback ecosystem.",
+};
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col relative overflow-hidden">
-      {/* WebGL LineWaves Canvas Background */}
-      <LineWaves
-        speed={0.3}
-        innerLineCount={32}
-        outerLineCount={36}
-        warpIntensity={1}
-        rotation={-45}
-        edgeFadeWidth={0}
-        colorCycleSpeed={1}
-        brightness={0.2}
-        color1="#ffffff"
-        color2="#ffffff"
-        color3="#ffffff"
-        enableMouseInteraction
-        mouseInfluence={2}
-      />
+      {/* WebGL LineWaves Canvas Background — loaded dynamically, no SSR */}
+      <DynamicLineWaves />
 
       {/* Header */}
       <header className="relative z-10 max-w-7xl mx-auto w-full px-6 h-20 flex justify-between items-center border-b border-outline-variant/10">
@@ -43,8 +33,8 @@ export default function Home() {
 
       {/* Main content */}
       <main className="relative z-10 flex-grow flex flex-col">
-        {/* Hero animation */}
-        <HeroScrollDemo />
+        {/* Hero animation — loaded dynamically, no SSR */}
+        <DynamicHeroScroll />
 
         {/* Footer feature list */}
         <section className="bg-white/60 dark:bg-black/40 backdrop-blur-md py-16 px-6 border-t border-outline-variant/10">
@@ -87,7 +77,3 @@ export default function Home() {
     </div>
   );
 }
-export const metadata = {
-  title: "OrderOrbit - College Canteen Pre-Order",
-  description: "Modern campus dining pre-order and feedback ecosystem.",
-};
