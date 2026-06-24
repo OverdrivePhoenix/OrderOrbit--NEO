@@ -57,10 +57,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const db = await Database.read();
+    const { getFirestoreCollection, firestoreDb } = require("@/lib/firebase");
+    const { doc, setDoc } = require("firebase/firestore");
+
+    const users = await getFirestoreCollection("users");
     const normalizedNewEmail = normalizeEmail(email);
-    const existingUser = db.users.find(
-      (u) => normalizeEmail(u.email) === normalizedNewEmail
+    const existingUser = users.find(
+      (u: any) => normalizeEmail(u.email) === normalizedNewEmail
     );
 
     if (existingUser) {
@@ -81,9 +84,7 @@ export async function POST(req: NextRequest) {
       walletBalance: role === "student" ? 0 : undefined,
     };
 
-    await Database.write((dbData) => {
-      dbData.users.push(newUser);
-    });
+    await setDoc(doc(firestoreDb, "users", newUser.id), newUser);
 
     return NextResponse.json({
       success: true,

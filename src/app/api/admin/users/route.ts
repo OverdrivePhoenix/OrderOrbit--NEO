@@ -14,12 +14,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = await Database.read();
-    const { getCredentials } = require("@/lib/firebase");
+    const { getFirestoreCollection, getCredentials } = require("@/lib/firebase");
+    const users = await getFirestoreCollection("users");
 
     // Return all users for admin review (excluding password hashes and retrieving activation tokens from Firestore/fallback)
     const sanitizedUsers = await Promise.all(
-      db.users.map(async ({ password_hash, ...u }) => {
+      users.map(async ({ password_hash, activationToken, ...u }: any) => {
         if (u.status === "approved") {
           const creds = await getCredentials(u.id);
           return {
@@ -48,16 +48,17 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
 
-    const db = await Database.read();
-    const userIndex = db.users.findIndex((u) => u.id === userId);
+    const { firestoreDb, saveCredentials, deleteCredentials } = require("@/lib/firebase");
+    const { doc, getDoc, updateDoc, deleteDoc } = require("firebase/firestore");
 
-    if (userIndex === -1) {
+    const userRef = doc(firestoreDb, "users", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const user = db.users[userIndex];
-
-    const { saveCredentials, deleteCredentials } = require("@/lib/firebase");
+    const user = userSnap.data();
 
     if (action === "approve") {
       if (user.status !== "pending") {
@@ -69,13 +70,7 @@ export async function PATCH(req: NextRequest) {
       // Save encrypted activation token in Firestore/fallback
       await saveCredentials(userId, { activationToken });
 
-      await Database.write((dbData) => {
-        const u = dbData.users.find((x) => x.id === userId);
-        if (u) {
-          u.status = "approved";
-          delete u.activationToken; // clean up local db field if any
-        }
-      });
+      await updateDoc(userRef, { status: "approved" });
 
       return NextResponse.json({
         success: true,
@@ -85,29 +80,20 @@ export async function PATCH(req: NextRequest) {
     } else if (action === "reject") {
       // Delete user credentials document from Firestore/fallback
       await deleteCredentials(userId);
-
-      await Database.write((dbData) => {
-        dbData.users = dbData.users.filter((x) => x.id !== userId);
-      });
+      await deleteDoc(userRef);
 
       return NextResponse.json({
         success: true,
         message: "User registration request rejected and deleted.",
       });
     } else if (action === "suspend") {
-      await Database.write((dbData) => {
-        const u = dbData.users.find((x) => x.id === userId);
-        if (u) u.status = "suspended";
-      });
+      await updateDoc(userRef, { status: "suspended" });
       return NextResponse.json({
         success: true,
         message: "User account suspended successfully.",
       });
     } else if (action === "unsuspend") {
-      await Database.write((dbData) => {
-        const u = dbData.users.find((x) => x.id === userId);
-        if (u) u.status = "active";
-      });
+      await updateDoc(userRef, { status: "active" });
       return NextResponse.json({
         success: true,
         message: "User account reactivated successfully.",
@@ -115,15 +101,7 @@ export async function PATCH(req: NextRequest) {
     } else if (action === "revoke") {
       // Delete credentials from Firestore/fallback
       await deleteCredentials(userId);
-
-      await Database.write((dbData) => {
-        const u = dbData.users.find((x) => x.id === userId);
-        if (u) {
-          u.status = "pending";
-          delete u.activationToken;
-          delete u.password_hash;
-        }
-      });
+      await updateDoc(userRef, { status: "pending" });
       return NextResponse.json({
         success: true,
         message: "User access revoked successfully.",

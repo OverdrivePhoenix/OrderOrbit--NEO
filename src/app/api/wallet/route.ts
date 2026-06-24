@@ -9,8 +9,11 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const db = await Database.read();
-    const currentUser = db.users.find((u) => u.id === user.id);
+    const { firestoreDb } = require("@/lib/firebase");
+    const { doc, getDoc } = require("firebase/firestore");
+    const userSnap = await getDoc(doc(firestoreDb, "users", user.id));
+    const currentUser = userSnap.exists() ? userSnap.data() : null;
+
     if (!currentUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

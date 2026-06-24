@@ -18,7 +18,7 @@ const firebaseConfig = {
 };
 
 let app;
-let firestoreDb: any = null;
+export let firestoreDb: any = null;
 
 try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

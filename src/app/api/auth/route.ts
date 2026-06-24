@@ -13,9 +13,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const db = await Database.read();
-    const user = db.users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase()
+    const { getFirestoreCollection } = require("@/lib/firebase");
+    const users = await getFirestoreCollection("users");
+    const user = users.find(
+      (u: any) => u.email.toLowerCase() === email.toLowerCase()
     );
 
     if (!user) {

@@ -12,19 +12,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const db = await Database.read();
-    const userIndex = db.users.findIndex(
-      (u) => u.email.toLowerCase() === email.toLowerCase()
+    const { getFirestoreCollection, firestoreDb } = require("@/lib/firebase");
+    const { doc, updateDoc } = require("firebase/firestore");
+
+    const users = await getFirestoreCollection("users");
+    const user = users.find(
+      (u: any) => u.email.toLowerCase() === email.toLowerCase()
     );
 
-    if (userIndex === -1) {
+    if (!user) {
       return NextResponse.json(
         { error: "No user found with the given email address." },
         { status: 404 }
       );
     }
-
-    const user = db.users[userIndex];
 
     if (user.status === "active") {
       return NextResponse.json(
@@ -62,15 +63,7 @@ export async function POST(req: NextRequest) {
       activationToken: null,
     });
 
-    await Database.write((dbData) => {
-      const u = dbData.users.find((x) => x.id === user.id);
-      if (u) {
-        // Remove plain text credential fields if they exist in local DB
-        delete u.password_hash;
-        delete u.activationToken;
-        u.status = "active";
-      }
-    });
+    await updateDoc(doc(firestoreDb, "users", user.id), { status: "active" });
 
     return NextResponse.json({
       success: true,

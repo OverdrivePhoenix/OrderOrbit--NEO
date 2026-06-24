@@ -45,9 +45,11 @@ export async function getSessionUser() {
     if (!verified) return null;
 
     // Real-time suspension and status check
-    const { Database } = require("@/data/db");
-    const db = await Database.read();
-    const user = db.users.find((u: any) => u.id === verified.id);
+    const { firestoreDb } = require("@/lib/firebase");
+    const { doc, getDoc } = require("firebase/firestore");
+    const userRef = doc(firestoreDb, "users", verified.id);
+    const userSnap = await getDoc(userRef);
+    const user = userSnap.exists() ? userSnap.data() : null;
     if (!user || user.status !== "active") {
       return null;
     }
