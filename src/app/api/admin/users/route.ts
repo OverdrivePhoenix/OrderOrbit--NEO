@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Database } from "@/data/db";
 import { verifyToken, getSessionUser } from "@/lib/auth";
 import { getFirestoreCollection, getCredentials, firestoreDb, saveCredentials, deleteCredentials } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { sendActivationEmail } from "@/lib/email";
 
 async function checkAdmin(req: NextRequest) {
   const user = await getSessionUser();
@@ -67,15 +67,28 @@ export async function PATCH(req: NextRequest) {
 
       const activationToken = `ACTIV-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-      // Save encrypted activation token in Firestore/fallback
+      // Save encrypted activation token in Firestore
       await saveCredentials(userId, { activationToken });
-
       await updateDoc(userRef, { status: "approved" });
+
+      // Send activation email — non-blocking so approval still succeeds even if email fails
+      let emailSent = false;
+      let emailError = "";
+      try {
+        await sendActivationEmail(user.email, user.name, activationToken);
+        emailSent = true;
+      } catch (emailErr: any) {
+        emailError = emailErr.message || "Failed to send email";
+        console.error("Failed to send activation email:", emailErr);
+      }
 
       return NextResponse.json({
         success: true,
-        message: "User approved successfully.",
+        message: emailSent
+          ? `User approved. Activation email sent to ${user.email}.`
+          : `User approved, but email failed to send: ${emailError}. Token: ${activationToken}`,
         activationToken,
+        emailSent,
       });
     } else if (action === "reject") {
       // Delete user credentials document from Firestore/fallback
