@@ -36,6 +36,13 @@ export async function verifyToken(token: string) {
   }
 }
 
+// Hardcoded fallback account IDs that are trusted from the JWT alone
+const FALLBACK_USER_IDS = new Set([
+  "u_admin_test",
+  "u_student_demo",
+  "u_staff_demo",
+]);
+
 export async function getSessionUser() {
   try {
     const cookieStore = await cookies();
@@ -44,14 +51,24 @@ export async function getSessionUser() {
     const verified = await verifyToken(token);
     if (!verified) return null;
 
-    // Real-time suspension and status check
-    const { firestoreDb } = require("@/lib/firebase");
-    const { doc, getDoc } = require("firebase/firestore");
-    const userRef = doc(firestoreDb, "users", verified.id);
-    const userSnap = await getDoc(userRef);
-    const user = userSnap.exists() ? userSnap.data() : null;
-    if (!user || user.status !== "active") {
-      return null;
+    // Trust hardcoded fallback accounts directly from the JWT — they don't exist in Firestore
+    if (FALLBACK_USER_IDS.has(verified.id)) {
+      return verified;
+    }
+
+    // For real registered users: check Firestore for real-time status (suspension, etc.)
+    try {
+      const { firestoreDb } = require("@/lib/firebase");
+      const { doc, getDoc } = require("firebase/firestore");
+      const userRef = doc(firestoreDb, "users", verified.id);
+      const userSnap = await getDoc(userRef);
+      const user = userSnap.exists() ? userSnap.data() : null;
+      if (!user || user.status !== "active") {
+        return null;
+      }
+    } catch (fsError) {
+      // If Firestore is unreachable, trust the JWT rather than locking everyone out
+      console.warn("Firestore unreachable in getSessionUser, trusting JWT:", fsError);
     }
 
     return verified;
