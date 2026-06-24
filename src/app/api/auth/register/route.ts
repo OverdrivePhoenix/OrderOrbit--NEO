@@ -4,7 +4,7 @@ import { normalizeEmail } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, name, role, department, studentId, otp } = await req.json();
+    const { email, name, role, department, studentId, otp, otpToken } = await req.json();
 
     if (!email || !name || !role || !department || !otp) {
       return NextResponse.json(
@@ -13,10 +13,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify OTP first
-    const { verifyOtp } = require("@/lib/firebase");
-    const isOtpValid = await verifyOtp(email, otp);
-    if (!isOtpValid) {
+    if (!otpToken) {
+      return NextResponse.json(
+        { error: "Verification session expired. Please request a new code." },
+        { status: 400 }
+      );
+    }
+
+    // Stateless OTP verification using JWT
+    try {
+      const { jwtVerify } = require("jose");
+      const crypto = require("crypto");
+      
+      const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "fallback");
+      const { payload } = await jwtVerify(otpToken, secretKey);
+      
+      if (payload.email !== email.toLowerCase().trim()) {
+        throw new Error("Email mismatch");
+      }
+      
+      const expectedHash = crypto.createHash("sha256").update(otp + (process.env.JWT_SECRET || "fallback")).digest("hex");
+      if (payload.otpHash !== expectedHash) {
+         throw new Error("Invalid code");
+      }
+    } catch (err) {
       return NextResponse.json(
         { error: "Invalid or expired verification code." },
         { status: 400 }

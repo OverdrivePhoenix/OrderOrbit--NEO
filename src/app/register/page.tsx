@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [successMsg, setSuccessMsg] = useState("");
 
   const [otp, setOtp] = useState("");
+  const [otpToken, setOtpToken] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -50,6 +51,9 @@ export default function RegisterPage() {
       }
       setOtpSent(true);
       setOtp("");
+      if (data.otpToken) {
+        setOtpToken(data.otpToken);
+      }
       setSuccessMsg(
         isResend
           ? `A new code has been sent to ${email}.`
@@ -89,6 +93,7 @@ export default function RegisterPage() {
           department,
           studentId: role === "student" ? studentId : undefined,
           otp,
+          otpToken,
         }),
       });
 

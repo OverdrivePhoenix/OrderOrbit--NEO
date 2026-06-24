@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveOtp } from "@/lib/firebase";
 import nodemailer from "nodemailer";
+import crypto from "crypto";
+import { SignJWT } from "jose";
 
 function createTransporter() {
   const user = process.env.GMAIL_USER;
@@ -100,8 +101,15 @@ export async function POST(req: NextRequest) {
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Persist to Firestore (+ in-memory fallback)
-    await saveOtp(key, otp);
+    // Create a stateless JWT token with hashed OTP to avoid Vercel Serverless memory issues
+    const otpHash = crypto.createHash("sha256").update(otp + (process.env.JWT_SECRET || "fallback")).digest("hex");
+    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "fallback");
+    
+    const token = await new SignJWT({ email: key, otpHash })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(secretKey);
 
     // Log to server only — never exposed in API response
     console.log(`[OTP] ${key} → ${otp}`);
@@ -112,6 +120,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Verification code sent to ${key}. Check your inbox.`,
+      otpToken: token,
     });
 
   } catch (error: any) {
