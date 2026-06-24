@@ -177,7 +177,7 @@ export async function getFirestoreCollection(colName: string): Promise<any[]> {
  * Sanitizes an object recursively to be compatible with Firestore.
  * Removes any undefined values or replaces them with null.
  */
-function sanitizeForFirestore(val: any): any {
+export function sanitizeForFirestore(val: any): any {
   if (val === undefined || val === null) {
     return null;
   }

@@ -109,7 +109,12 @@ export async function PATCH(req: NextRequest) {
     }
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: any) {
+    if (error.code === "permission-denied") {
+      return NextResponse.json({ 
+        error: "Database permission denied. Please update your Firestore Security Rules to allow writes to the 'users' collection." 
+      }, { status: 500 });
+    }
     console.error("Admin Users PATCH error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }

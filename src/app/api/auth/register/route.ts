@@ -3,7 +3,7 @@ import { Database } from "@/data/db";
 import { normalizeEmail } from "@/lib/auth";
 import { jwtVerify } from "jose";
 import crypto from "crypto";
-import { getFirestoreCollection, firestoreDb } from "@/lib/firebase";
+import { getFirestoreCollection, firestoreDb, sanitizeForFirestore } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
@@ -82,7 +82,16 @@ export async function POST(req: NextRequest) {
       walletBalance: role === "student" ? 0 : undefined,
     };
 
-    await setDoc(doc(firestoreDb, "users", newUser.id), newUser);
+    try {
+      await setDoc(doc(firestoreDb, "users", newUser.id), sanitizeForFirestore(newUser));
+    } catch (dbError: any) {
+      if (dbError.code === "permission-denied") {
+        return NextResponse.json({ 
+          error: "Database permission denied. Please update your Firestore Security Rules to allow writes to the 'users' collection." 
+        }, { status: 500 });
+      }
+      throw dbError;
+    }
 
     return NextResponse.json({
       success: true,
@@ -90,6 +99,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("Register API error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
