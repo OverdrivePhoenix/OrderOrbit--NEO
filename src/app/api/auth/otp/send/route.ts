@@ -2,25 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { saveOtp } from "@/lib/firebase";
 import nodemailer from "nodemailer";
 
-// Build the Gmail SMTP transporter using env credentials
 function createTransporter() {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
-
   if (!user || !pass) return null;
-
   return nodemailer.createTransport({
     service: "gmail",
     auth: { user, pass },
   });
 }
 
-async function sendOtpEmail(to: string, otp: string): Promise<boolean> {
+async function sendOtpEmail(to: string, otp: string): Promise<void> {
   const transporter = createTransporter();
-  if (!transporter) return false;
-
-  const fromName = "OrderOrbit";
-  const from = `"${fromName}" <${process.env.GMAIL_USER}>`;
+  if (!transporter) {
+    throw new Error("Email service is not configured. Please contact the administrator.");
+  }
 
   const html = `
 <!DOCTYPE html>
@@ -33,7 +29,7 @@ async function sendOtpEmail(to: string, otp: string): Promise<boolean> {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#05080f;padding:40px 16px;">
     <tr><td align="center">
       <table width="480" cellpadding="0" cellspacing="0" style="background:#0d1117;border-radius:16px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;max-width:480px;width:100%;">
-        
+
         <!-- Header -->
         <tr>
           <td style="background:linear-gradient(135deg,#ff6b35,#e85a2a);padding:28px 32px;text-align:center;">
@@ -77,19 +73,13 @@ async function sendOtpEmail(to: string, otp: string): Promise<boolean> {
 </body>
 </html>`;
 
-  try {
-    await transporter.sendMail({
-      from,
-      to,
-      subject: `${otp} is your OrderOrbit verification code`,
-      text: `Your OrderOrbit verification code is: ${otp}\n\nThis code expires in 5 minutes.\n\nIf you did not request this, please ignore this email.`,
-      html,
-    });
-    return true;
-  } catch (err) {
-    console.error("[OTP] Gmail send failed:", err);
-    return false;
-  }
+  await transporter.sendMail({
+    from: `"OrderOrbit" <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `${otp} — your OrderOrbit verification code`,
+    text: `Your OrderOrbit verification code is: ${otp}\n\nThis code expires in 5 minutes.\n\nIf you did not request this, please ignore this email.`,
+    html,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -102,42 +92,33 @@ export async function POST(req: NextRequest) {
 
     const key = email.toLowerCase().trim();
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(key)) {
       return NextResponse.json({ error: "Invalid email format." }, { status: 400 });
     }
 
-    // Generate a secure 6-digit OTP
+    // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Save to Firestore (with in-memory fallback)
+    // Persist to Firestore (+ in-memory fallback)
     await saveOtp(key, otp);
 
-    // Always log to server console (visible in Vercel Function Logs)
-    console.log(`\n==========================================\n[OTP] Code for ${key}: ${otp}\n==========================================\n`);
+    // Log to server only — never exposed in API response
+    console.log(`[OTP] ${key} → ${otp}`);
 
-    // Try to send via Gmail SMTP
-    const emailSent = await sendOtpEmail(key, otp);
+    // Send via Gmail — throws if not configured or on SMTP failure
+    await sendOtpEmail(key, otp);
 
-    if (emailSent) {
-      // Email delivered — don't expose OTP in response
-      return NextResponse.json({
-        success: true,
-        message: `Verification code sent to ${key}. Check your inbox (and spam folder).`,
-      });
-    }
-
-    // Gmail not configured — fall back to on-screen display
-    console.warn("[OTP] GMAIL_USER / GMAIL_APP_PASSWORD not set. Returning code in response for demo.");
     return NextResponse.json({
       success: true,
-      message: "Email service not configured. Use the code shown below.",
-      debugOtp: otp,
+      message: `Verification code sent to ${key}. Check your inbox.`,
     });
 
   } catch (error: any) {
-    console.error("OTP Send error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("OTP Send error:", error.message || error);
+    return NextResponse.json(
+      { error: error.message || "Failed to send verification code." },
+      { status: 500 }
+    );
   }
 }
