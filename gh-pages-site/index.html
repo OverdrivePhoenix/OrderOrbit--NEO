@@ -211,33 +211,6 @@
     .feature-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; }
     .feature-card p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; }
 
-    /* ── DEMO CREDS ── */
-    .creds-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;
-      margin-top: 40px;
-    }
-    .cred-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 24px;
-      transition: border-color 0.2s ease;
-    }
-    .cred-card:hover { border-color: rgba(255,255,255,0.15); }
-    .cred-role {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; padding: 4px 10px; border-radius: 100px;
-      margin-bottom: 14px;
-    }
-    .cred-field { margin-bottom: 10px; }
-    .cred-field label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 4px; }
-    .cred-field code {
-      display: block; background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 8px; padding: 8px 12px;
-      font-size: 0.85rem; font-family: 'Courier New', monospace;
-      color: var(--text); cursor: pointer; transition: border-color 0.2s ease;
-      user-select: all;
-    }
-    .cred-field code:hover { border-color: var(--primary); }
 
     /* ── STACK ── */
     .tech-pills {
@@ -420,58 +393,6 @@
   </div>
 </section>
 
-<!-- ── DEMO CREDENTIALS ── -->
-<section class="section relative" style="padding-top: 16px">
-  <div class="container">
-    <span class="section-label reveal">Try It Live</span>
-    <h2 class="reveal">Demo accounts ready to go.</h2>
-    <p class="section-sub reveal">Use these prebuilt credentials on the live Vercel app. Click any field to copy it.</p>
-
-    <div class="creds-grid">
-      <div class="cred-card reveal">
-        <div class="cred-role" style="background:rgba(99,179,237,0.15); color:#63b3ed">
-          <span class="material-symbols-outlined" style="font-size:14px">school</span> Student
-        </div>
-        <div class="cred-field">
-          <label>Email</label>
-          <code onclick="copy(this)" title="Click to copy">student@college.edu</code>
-        </div>
-        <div class="cred-field">
-          <label>Password</label>
-          <code onclick="copy(this)" title="Click to copy">password</code>
-        </div>
-      </div>
-
-      <div class="cred-card reveal">
-        <div class="cred-role" style="background:rgba(154,230,180,0.15); color:#68d391">
-          <span class="material-symbols-outlined" style="font-size:14px">soup_kitchen</span> Kitchen Staff
-        </div>
-        <div class="cred-field">
-          <label>Email</label>
-          <code onclick="copy(this)" title="Click to copy">staff@college.edu</code>
-        </div>
-        <div class="cred-field">
-          <label>Password</label>
-          <code onclick="copy(this)" title="Click to copy">password</code>
-        </div>
-      </div>
-
-      <div class="cred-card reveal">
-        <div class="cred-role" style="background:rgba(255,107,53,0.15); color:#ff6b35">
-          <span class="material-symbols-outlined" style="font-size:14px">admin_panel_settings</span> Admin
-        </div>
-        <div class="cred-field">
-          <label>Email</label>
-          <code onclick="copy(this)" title="Click to copy">admin@college.edu</code>
-        </div>
-        <div class="cred-field">
-          <label>Password</label>
-          <code onclick="copy(this)" title="Click to copy">password</code>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- ── TECH STACK ── -->
 <section class="section relative" style="padding-top: 16px">

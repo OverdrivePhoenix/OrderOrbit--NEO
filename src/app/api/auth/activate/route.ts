@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminGetCollection, adminSetDoc } from "@/lib/firebase-admin";
+import { adminGetCollection, adminUpdateDoc } from "@/lib/firebase-admin";
 import { getCredentials, saveCredentials } from "@/lib/firebase";
-import { normalizeEmail } from "@/lib/auth";
-import { jwtVerify } from "jose";
-import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -25,7 +22,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Find user via Admin SDK — no Security Rules blocking
-    const { adminGetDoc, adminUpdateDoc } = require("@/lib/firebase-admin");
     const users = await adminGetCollection("users");
     const user = users.find(
       (u: any) => u.email.toLowerCase() === email.toLowerCase().trim()
