@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 
-const LineWaves = dynamic(() => import("@/components/LineWaves"), {
+const MagicRings = dynamic(() => import("@/components/MagicRings"), {
   ssr: false,
 });
 
@@ -12,24 +12,34 @@ const HeroScrollDemo = dynamic(
   { ssr: false }
 );
 
-export function DynamicLineWaves() {
+export function DynamicMagicRings() {
   return (
     <Suspense fallback={<div className="absolute inset-0 bg-background" />}>
-      <LineWaves
-        speed={0.3}
-        innerLineCount={32}
-        outerLineCount={36}
-        warpIntensity={1}
-        rotation={-45}
-        edgeFadeWidth={0}
-        colorCycleSpeed={1}
-        brightness={0.2}
-        color1="#ffffff"
-        color2="#ffffff"
-        color3="#ffffff"
-        enableMouseInteraction
-        mouseInfluence={2}
-      />
+      <div className="absolute inset-0 z-0">
+        <MagicRings
+          color="#fc42ff"
+          colorTwo="#42fcff"
+          ringCount={6}
+          speed={1}
+          attenuation={10}
+          lineThickness={2}
+          baseRadius={0.35}
+          radiusStep={0.1}
+          scaleRate={0.1}
+          opacity={1}
+          blur={0}
+          noiseAmount={0.1}
+          rotation={0}
+          ringGap={1.5}
+          fadeIn={0.7}
+          fadeOut={0.5}
+          followMouse={true}
+          mouseInfluence={0.2}
+          hoverScale={1.2}
+          parallax={0.05}
+          clickBurst={false}
+        />
+      </div>
     </Suspense>
   );
 }

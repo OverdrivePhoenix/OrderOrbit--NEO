@@ -1,6 +1,6 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
-import { DynamicLineWaves, DynamicHeroScroll } from "@/components/DynamicHome";
+import { DynamicMagicRings, DynamicHeroScroll } from "@/components/DynamicHome";
 
 export const metadata = {
   title: "OrderOrbit - College Canteen Pre-Order",
@@ -10,8 +10,8 @@ export const metadata = {
 export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col relative overflow-hidden">
-      {/* WebGL LineWaves Canvas Background — loaded dynamically, no SSR */}
-      <DynamicLineWaves />
+      {/* Magic Rings Canvas Background — loaded dynamically, no SSR */}
+      <DynamicMagicRings />
 
       {/* Header */}
       <header className="relative z-10 max-w-7xl mx-auto w-full px-6 h-20 flex justify-between items-center border-b border-outline-variant/10">
