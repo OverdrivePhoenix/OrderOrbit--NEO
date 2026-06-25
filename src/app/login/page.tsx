@@ -67,29 +67,7 @@ export default function LoginPage() {
   };
 
 
-  const handleGuestLogin = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "student@college.edu", password: "password" }),
-      });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Login failed");
-      }
-
-      router.push("/menu");
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center font-sans text-foreground relative overflow-hidden bg-background">
@@ -224,20 +202,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="relative flex items-center py-2 w-full mt-2">
-            <div className="flex-grow border-t border-border"></div>
-            <span className="flex-shrink-0 mx-4 text-muted-foreground text-xs font-semibold">or</span>
-            <div className="flex-grow border-t border-border"></div>
-          </div>
 
-          <button
-            onClick={handleGuestLogin}
-            disabled={loading}
-            className="w-full bg-muted hover:bg-muted/80 text-foreground font-semibold h-12 rounded-xl flex items-center justify-center gap-2 border border-border transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[20px]">person</span>
-            Guest Access (Student Role)
-          </button>
 
           <div className="flex flex-col gap-2 mt-6 text-center w-full border-t border-border pt-4">
             <p className="text-xs text-muted-foreground">
