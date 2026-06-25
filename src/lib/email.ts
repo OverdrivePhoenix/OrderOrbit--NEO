@@ -21,7 +21,7 @@ export async function sendActivationEmail(
     throw new Error("Email service is not configured. Please contact the administrator.");
   }
 
-  const activateUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://order-orbit-neo.vercel.app"}/activate`;
+  const activateUrl = "https://order-orbit-neo.vercel.app/activate";
 
   const html = `
 <!DOCTYPE html>
