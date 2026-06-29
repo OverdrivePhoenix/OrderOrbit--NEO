@@ -72,7 +72,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="relative z-10 py-8 border-t border-outline-variant/10 text-center text-xs text-on-surface-variant">
-        <p>© 2026 OrderOrbit Ecosystem. B.Tech S4 Engineering Team Project.</p>
+        <p>© 2026 OrderOrbit Ecosystem. B.Tech S3 Engineering Team Project.</p>
       </footer>
     </div>
   );

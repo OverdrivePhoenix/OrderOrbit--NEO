@@ -84,4 +84,4 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the r
 ---
 
 ## 📄 License
-© 2026 OrderOrbit · B.Tech S4 Engineering Project
+© 2026 OrderOrbit · B.Tech S3 Engineering Project

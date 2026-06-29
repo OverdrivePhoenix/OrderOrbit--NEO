@@ -81,7 +81,7 @@ export async function sendActivationEmail(
           <td style="padding:24px 32px;text-align:center;">
             <p style="margin:0;color:#6e7681;font-size:11px;line-height:1.6;">
               If you did not create an account on OrderOrbit, you can safely ignore this email.<br/>
-              © 2026 OrderOrbit · B.Tech S4 Engineering Project
+              © 2026 OrderOrbit · B.Tech S3 Engineering Project
             </p>
           </td>
         </tr>
@@ -142,7 +142,7 @@ export async function sendOtpEmail(to: string, otp: string): Promise<void> {
           <td style="padding:24px 32px;text-align:center;">
             <p style="margin:0;color:#6e7681;font-size:11px;line-height:1.6;">
               If you did not request this, you can safely ignore this email.<br/>
-              © 2026 OrderOrbit · B.Tech S4 Engineering Project
+              © 2026 OrderOrbit · B.Tech S3 Engineering Project
             </p>
           </td>
         </tr>
