@@ -17,24 +17,57 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
+const DB_FILE_PATH = path.join(process.cwd(), "src", "data", "db.json");
+
+function readLocalDbJson(): any {
+  try {
+    if (fs.existsSync(DB_FILE_PATH)) {
+      const data = fs.readFileSync(DB_FILE_PATH, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("Failed to read local db.json:", error);
+  }
+  return {};
+}
+
+function writeLocalDbJson(data: any): void {
+  try {
+    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(data, null, 2), "utf8");
+  } catch (error) {
+    console.error("Failed to write local db.json:", error);
+  }
+}
+
+const isFirebaseConfigured = !!(
+  firebaseConfig.apiKey &&
+  firebaseConfig.projectId &&
+  firebaseConfig.apiKey !== "undefined" &&
+  firebaseConfig.projectId !== "undefined"
+);
+
 let app;
 export let firestoreDb: any = null;
 
-try {
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-  // Force long polling to avoid gRPC connection timeouts in serverless functions
-  const { initializeFirestore } = require("firebase/firestore");
+if (isFirebaseConfigured) {
   try {
-    firestoreDb = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-    });
-  } catch (e) {
-    firestoreDb = getFirestore(app);
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    // Force long polling to avoid gRPC connection timeouts in serverless functions
+    const { initializeFirestore } = require("firebase/firestore");
+    try {
+      firestoreDb = initializeFirestore(app, {
+        experimentalForceLongPolling: true,
+      });
+    } catch (e) {
+      firestoreDb = getFirestore(app);
+    }
+    console.log("Firebase App initialized successfully with projectId:", firebaseConfig.projectId);
+  } catch (error: any) {
+    console.error("Failed to initialize Firebase App SDK:", error.message || error);
+    console.warn("Falling back to local credentials file:", FALLBACK_FILE_PATH);
   }
-  console.log("Firebase App initialized successfully with projectId:", firebaseConfig.projectId);
-} catch (error: any) {
-  console.error("Failed to initialize Firebase App SDK:", error.message || error);
-  console.warn("Falling back to local credentials file:", FALLBACK_FILE_PATH);
+} else {
+  console.warn("Firebase client credentials not fully provided. Running in local fallback mode.");
 }
 
 // Local file helper functions for fallback mode
@@ -162,7 +195,10 @@ export async function deleteCredentials(userId: string): Promise<void> {
  * Fetches all documents from a Firestore collection.
  */
 export async function getFirestoreCollection(colName: string): Promise<any[]> {
-  if (!firestoreDb) return [];
+  if (!firestoreDb) {
+    const db = readLocalDbJson();
+    return db[colName] || [];
+  }
   try {
     const colRef = collection(firestoreDb, colName);
     const snapshot = await getDocs(colRef);
@@ -200,7 +236,12 @@ export function sanitizeForFirestore(val: any): any {
  * Syncs an array of items to a Firestore collection, handling additions, updates, and deletions.
  */
 export async function syncCollectionToFirestore(colName: string, items: any[]): Promise<void> {
-  if (!firestoreDb) return;
+  if (!firestoreDb) {
+    const db = readLocalDbJson();
+    db[colName] = items;
+    writeLocalDbJson(db);
+    return;
+  }
   try {
     const colRef = collection(firestoreDb, colName);
     const snapshot = await getDocs(colRef);

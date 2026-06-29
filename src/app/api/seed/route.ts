@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { firestoreDb, saveCredentials } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
+import { Database } from "@/data/db";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
@@ -17,7 +18,19 @@ export async function GET() {
     };
 
     // Save to firestore users collection
-    await setDoc(doc(firestoreDb, "users", adminId), adminUser);
+    if (firestoreDb) {
+      await setDoc(doc(firestoreDb, "users", adminId), adminUser);
+    } else {
+      await Database.write((db) => {
+        if (!db.users) db.users = [];
+        const idx = db.users.findIndex((u) => u.id === adminId);
+        if (idx !== -1) {
+          db.users[idx] = adminUser;
+        } else {
+          db.users.push(adminUser);
+        }
+      });
+    }
 
     // Save password
     const hash = await bcrypt.hash("admin123", 10);

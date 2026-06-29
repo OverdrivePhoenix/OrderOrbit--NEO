@@ -10,9 +10,16 @@ export async function GET() {
     }
 
     const { firestoreDb } = require("@/lib/firebase");
-    const { doc, getDoc } = require("firebase/firestore");
-    const userSnap = await getDoc(doc(firestoreDb, "users", user.id));
-    const currentUser = userSnap.exists() ? userSnap.data() : null;
+    let currentUser: any = null;
+
+    if (firestoreDb) {
+      const { doc, getDoc } = require("firebase/firestore");
+      const userSnap = await getDoc(doc(firestoreDb, "users", user.id));
+      currentUser = userSnap.exists() ? userSnap.data() : null;
+    } else {
+      const db = await Database.read();
+      currentUser = db.users?.find((u) => u.id === user.id) || null;
+    }
 
     if (!currentUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

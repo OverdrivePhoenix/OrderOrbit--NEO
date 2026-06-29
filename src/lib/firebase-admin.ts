@@ -5,6 +5,37 @@
  */
 import { initializeApp, getApps, getApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import fs from "fs";
+import path from "path";
+
+const DB_FILE_PATH = path.join(process.cwd(), "src", "data", "db.json");
+
+function readLocalDbJson(): any {
+  try {
+    if (fs.existsSync(DB_FILE_PATH)) {
+      const data = fs.readFileSync(DB_FILE_PATH, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("Failed to read local db.json:", error);
+  }
+  return {};
+}
+
+function writeLocalDbJson(data: any): void {
+  try {
+    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(data, null, 2), "utf8");
+  } catch (error) {
+    console.error("Failed to write local db.json:", error);
+  }
+}
+
+const isAdminFirebaseConfigured = !!(
+  process.env.FIREBASE_ADMIN_CLIENT_EMAIL &&
+  process.env.FIREBASE_ADMIN_PRIVATE_KEY &&
+  process.env.FIREBASE_ADMIN_CLIENT_EMAIL !== "undefined" &&
+  process.env.FIREBASE_ADMIN_PRIVATE_KEY !== "undefined"
+);
 
 function getAdminApp() {
   if (getApps().length > 0) {
@@ -40,6 +71,10 @@ export function getAdminDb() {
  * Fetch all documents from a Firestore collection (Admin SDK — no rules).
  */
 export async function adminGetCollection(colName: string): Promise<any[]> {
+  if (!isAdminFirebaseConfigured) {
+    const db = readLocalDbJson();
+    return db[colName] || [];
+  }
   try {
     const db = getAdminDb();
     const snapshot = await db.collection(colName).get();
@@ -54,6 +89,11 @@ export async function adminGetCollection(colName: string): Promise<any[]> {
  * Get a single document (Admin SDK).
  */
 export async function adminGetDoc(colName: string, docId: string): Promise<any | null> {
+  if (!isAdminFirebaseConfigured) {
+    const db = readLocalDbJson();
+    const list = db[colName] || [];
+    return list.find((item: any) => item.id === docId) || null;
+  }
   try {
     const db = getAdminDb();
     const snap = await db.collection(colName).doc(docId).get();
@@ -74,6 +114,23 @@ export async function adminSetDoc(
   data: Record<string, any>,
   merge = false
 ): Promise<void> {
+  if (!isAdminFirebaseConfigured) {
+    const db = readLocalDbJson();
+    if (!db[colName]) db[colName] = [];
+    const idx = db[colName].findIndex((item: any) => item.id === docId);
+    const sanitized = sanitize(data);
+    if (idx !== -1) {
+      if (merge) {
+        db[colName][idx] = { ...db[colName][idx], ...sanitized };
+      } else {
+        db[colName][idx] = { id: docId, ...sanitized };
+      }
+    } else {
+      db[colName].push({ id: docId, ...sanitized });
+    }
+    writeLocalDbJson(db);
+    return;
+  }
   const db = getAdminDb();
   await db.collection(colName).doc(docId).set(sanitize(data), { merge });
 }
@@ -86,6 +143,16 @@ export async function adminUpdateDoc(
   docId: string,
   data: Record<string, any>
 ): Promise<void> {
+  if (!isAdminFirebaseConfigured) {
+    const db = readLocalDbJson();
+    if (!db[colName]) db[colName] = [];
+    const idx = db[colName].findIndex((item: any) => item.id === docId);
+    if (idx !== -1) {
+      db[colName][idx] = { ...db[colName][idx], ...sanitize(data) };
+      writeLocalDbJson(db);
+    }
+    return;
+  }
   const db = getAdminDb();
   await db.collection(colName).doc(docId).update(sanitize(data));
 }
@@ -94,6 +161,14 @@ export async function adminUpdateDoc(
  * Delete a document (Admin SDK).
  */
 export async function adminDeleteDoc(colName: string, docId: string): Promise<void> {
+  if (!isAdminFirebaseConfigured) {
+    const db = readLocalDbJson();
+    if (db[colName]) {
+      db[colName] = db[colName].filter((item: any) => item.id !== docId);
+      writeLocalDbJson(db);
+    }
+    return;
+  }
   const db = getAdminDb();
   await db.collection(colName).doc(docId).delete();
 }

@@ -211,11 +211,12 @@ export interface DatabaseSchema {
   orders: Order[];
   reviews: Review[];
   dailySummaries: DailySummary[];
+  users: any[];
 }
 
 export class Database {
   private static async readState(): Promise<DatabaseSchema> {
-    let db: DatabaseSchema = { menu: [], orders: [], reviews: [], dailySummaries: [] };
+    let db: DatabaseSchema = { menu: [], orders: [], reviews: [], dailySummaries: [], users: [] };
     
     // 1. Load local fallback DB
     try {
@@ -233,18 +234,21 @@ export class Database {
       const firestoreOrders = await getFirestoreCollection("orders");
       const firestoreReviews = await getFirestoreCollection("reviews");
       const firestoreDailySummaries = await getFirestoreCollection("dailySummaries");
+      const firestoreUsers = await getFirestoreCollection("users");
 
       const hasFirestoreData =
         firestoreMenu.length > 0 ||
         firestoreOrders.length > 0 ||
         firestoreReviews.length > 0 ||
-        firestoreDailySummaries.length > 0;
+        firestoreDailySummaries.length > 0 ||
+        firestoreUsers.length > 0;
 
       if (hasFirestoreData) {
         if (firestoreMenu.length > 0) db.menu = firestoreMenu;
         if (firestoreOrders.length > 0) db.orders = firestoreOrders;
         if (firestoreReviews.length > 0) db.reviews = firestoreReviews;
         if (firestoreDailySummaries.length > 0) db.dailySummaries = firestoreDailySummaries;
+        if (firestoreUsers.length > 0) db.users = firestoreUsers;
       } else {
         // Seed Firestore if empty
         console.log("Firestore collections are empty. Seeding with local db.json data...");
@@ -252,6 +256,7 @@ export class Database {
         if (db.orders.length > 0) await syncCollectionToFirestore("orders", db.orders);
         if (db.reviews.length > 0) await syncCollectionToFirestore("reviews", db.reviews);
         if (db.dailySummaries.length > 0) await syncCollectionToFirestore("dailySummaries", db.dailySummaries);
+        if (db.users.length > 0) await syncCollectionToFirestore("users", db.users);
       }
     } catch (error) {
       console.error("Failed to read from or sync to Firestore, using local data:", error);
@@ -274,6 +279,9 @@ export class Database {
       await syncCollectionToFirestore("orders", data.orders);
       await syncCollectionToFirestore("reviews", data.reviews);
       await syncCollectionToFirestore("dailySummaries", data.dailySummaries);
+      if (data.users) {
+        await syncCollectionToFirestore("users", data.users);
+      }
     } catch (error) {
       console.error("Failed to sync database to Firestore:", error);
     }
@@ -514,16 +522,27 @@ export class Database {
     try {
       const db = await this.readState();
 
-      // 1. Verify user exists and check wallet balance via Firestore
+      let user: any;
       const { firestoreDb } = require("@/lib/firebase");
-      const { doc, getDoc, updateDoc } = require("firebase/firestore");
-      const userRef = doc(firestoreDb, "users", userId);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        throw new Error("User not found in database");
+
+      if (firestoreDb) {
+        // 1. Verify user exists and check wallet balance via Firestore
+        const { doc, getDoc } = require("firebase/firestore");
+        const userRef = doc(firestoreDb, "users", userId);
+        const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+          throw new Error("User not found in database");
+        }
+        user = userSnap.data();
+      } else {
+        // Fallback: local users array
+        const localUser = db.users?.find((u) => u.id === userId);
+        if (!localUser) {
+          throw new Error("User not found in database");
+        }
+        user = localUser;
       }
-      const user = userSnap.data();
 
       // Calculate total price in paise
       let total = 0;
@@ -551,7 +570,11 @@ export class Database {
 
       // 2. Deduct wallet balance
       user.walletBalance = balance - total;
-      await updateDoc(userRef, { walletBalance: user.walletBalance });
+      if (firestoreDb) {
+        const { doc, updateDoc } = require("firebase/firestore");
+        const userRef = doc(firestoreDb, "users", userId);
+        await updateDoc(userRef, { walletBalance: user.walletBalance });
+      }
 
       // 3. Decrement stock, calculate totals, increment version
       const orderItems: OrderItem[] = [];
@@ -607,16 +630,28 @@ export class Database {
     const release = await dbMutex.acquire();
     try {
       const { firestoreDb } = require("@/lib/firebase");
-      const { doc, getDoc, updateDoc } = require("firebase/firestore");
-      const userRef = doc(firestoreDb, "users", userId);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
-        throw new Error("User not found");
+      if (firestoreDb) {
+        const { doc, getDoc, updateDoc } = require("firebase/firestore");
+        const userRef = doc(firestoreDb, "users", userId);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          throw new Error("User not found");
+        }
+        const user = userSnap.data();
+        user.walletBalance = (user.walletBalance || 0) + amount;
+        await updateDoc(userRef, { walletBalance: user.walletBalance });
+        return user.walletBalance;
+      } else {
+        // Fallback: local users array
+        const db = await this.readState();
+        const user = db.users?.find((u) => u.id === userId);
+        if (!user) {
+          throw new Error("User not found");
+        }
+        user.walletBalance = (user.walletBalance || 0) + amount;
+        await this.writeState(db);
+        return user.walletBalance;
       }
-      const user = userSnap.data();
-      user.walletBalance = (user.walletBalance || 0) + amount;
-      await updateDoc(userRef, { walletBalance: user.walletBalance });
-      return user.walletBalance;
     } finally {
       release();
     }
