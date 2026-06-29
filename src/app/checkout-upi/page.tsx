@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Order } from "@/data/db";
 import Link from "next/link";
 import QRCode from "qrcode";
+import Image from "next/image";
 import ThemeToggle from "@/components/ThemeToggle";
 
 function UpiCheckoutContent() {
@@ -291,9 +292,11 @@ function UpiCheckoutContent() {
         {/* QR Code Container (High-contrast light card for scanners) */}
         <div className="bg-white border border-border rounded-2xl p-6 flex flex-col items-center shadow-sm min-h-[300px] justify-center text-slate-800">
           {qrCodeUrl ? (
-            <img
+            <Image
               src={qrCodeUrl}
               alt="UPI QR Code"
+              width={208}
+              height={208}
               className="w-52 h-52 object-contain border border-slate-100 rounded-xl"
             />
           ) : (
@@ -321,7 +324,7 @@ function UpiCheckoutContent() {
             />
             {previewUrl ? (
               <div className="relative w-full h-44 rounded-xl overflow-hidden border border-border bg-white flex items-center justify-center">
-                <img src={previewUrl} alt="Receipt preview" className="h-full object-contain" />
+                <Image src={previewUrl} alt="Receipt preview" width={300} height={300} className="h-full object-contain" />
               </div>
             ) : (
               <div className="text-center py-4 space-y-2">

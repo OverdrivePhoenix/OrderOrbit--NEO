@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { MenuItem, Order, Review } from "@/data/db";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -327,10 +329,12 @@ export default function StudentMenu() {
                       } ${!isAvailable ? "opacity-75" : ""}`}
                     >
                       <div className="relative h-44 w-full overflow-hidden bg-muted">
-                        <img
+                        <Image
                           src={item.image}
                           alt={item.name}
-                          className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                          width={400}
+                          height={400}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                         <div className="absolute top-3 left-3 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                           Ready in {item.prepTime}m

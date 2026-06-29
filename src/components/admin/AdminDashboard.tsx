@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MenuItem, Order, Review, DailySummary, User } from "@/data/db";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AdminDashboard() {
@@ -1306,7 +1308,7 @@ export default function AdminDashboard() {
                 />
                 {newItemData.image && (
                   <div className="mt-2 relative w-20 h-20 rounded-xl overflow-hidden border border-border/40">
-                    <img src={newItemData.image} alt="Preview" className="w-full h-full object-cover" />
+                    <Image src={newItemData.image} alt="Preview" width={80} height={80} className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>
@@ -1414,7 +1416,7 @@ export default function AdminDashboard() {
                 />
                 {editItemData.image && (
                   <div className="mt-2 relative w-20 h-20 rounded-xl overflow-hidden border border-border/40">
-                    <img src={editItemData.image} alt="Preview" className="w-full h-full object-cover" />
+                    <Image src={editItemData.image} alt="Preview" width={80} height={80} className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>
@@ -1489,9 +1491,11 @@ export default function AdminDashboard() {
                 <span className="text-[10px] uppercase font-bold text-muted-foreground/70 block">Uploaded Receipt Screenshot</span>
                 <div className="bg-muted border border-border/20 rounded-xl overflow-hidden p-2 flex justify-center max-h-[350px]">
                   {selectedVerificationOrder.screenshotUrl ? (
-                    <img
+                    <Image
                       src={selectedVerificationOrder.screenshotUrl}
                       alt="UPI Payment Screenshot"
+                      width={400}
+                      height={400}
                       className="max-h-[330px] w-auto object-contain rounded-lg shadow-sm"
                     />
                   ) : (

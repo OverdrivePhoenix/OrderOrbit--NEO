@@ -22,9 +22,11 @@ export function HeroScrollDemo() {
         }
       >
         <div className="relative w-full h-full bg-gradient-to-b from-surface-container-low to-surface flex flex-col items-center justify-center p-6 text-center">
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1400&auto=format&fit=crop"
             alt="OrderOrbit Student Menu Preview"
+            width={1400}
+            height={800}
             className="mx-auto rounded-2xl object-cover h-full w-full opacity-90 shadow-lg border border-outline-variant/30"
             draggable={false}
           />

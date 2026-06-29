@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { MenuItem, Order } from "@/data/db";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -454,10 +455,11 @@ export default function KitchenDashboard() {
                     {/* Item Image */}
                     {item.image && (
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted flex-shrink-0 border border-border">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                           src={item.image}
                           alt={item.name}
+                          width={64}
+                          height={64}
                           className="w-full h-full object-cover"
                         />
                       </div>
