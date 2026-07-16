@@ -88,6 +88,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the r
 
 ## Demo login credentials
 **For student section**
+```
 --student@college.edu 
 --password
 **For admin section**
@@ -96,3 +97,4 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the r
 **For staff section**
 --staff@college.edu
 --password
+```
