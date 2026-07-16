@@ -85,3 +85,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the r
 
 ## 📄 License
 © 2026 OrderOrbit · B.Tech S3 Engineering Project
+
+Demo login credentials
+-For student section
+--student@college.edu 
+--password
+For admin section
+--admin@college.edu
+--admin123
+For staff section
+--staff@college.edu
+--password
