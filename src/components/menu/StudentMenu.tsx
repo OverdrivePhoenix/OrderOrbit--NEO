@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { MenuItem, Order, Review } from "@/data/db";
 import ThemeToggle from "@/components/ThemeToggle";
+import { safeFetchJson } from "@/lib/utils";
 
 export default function StudentMenu() {
   const router = useRouter();
@@ -36,19 +37,19 @@ export default function StudentMenu() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch("/api/menu");
-        if (res.status === 401) {
+        const { ok, status, data: menuData } = await safeFetchJson<{ menu?: MenuItem[]; error?: string }>("/api/menu");
+        if (status === 401) {
           router.push("/login");
           return;
         }
-        const sessionRes = await fetch("/api/orders");
-        if (sessionRes.ok) {
-          const orderData = await sessionRes.json();
+        const { ok: orderOk, data: orderData } = await safeFetchJson<{ orders?: Order[] }>("/api/orders");
+        if (orderOk) {
           setOrders(orderData.orders || []);
         }
 
-        const menuData = await res.json();
-        setMenu(menuData.menu || []);
+        if (ok) {
+          setMenu(menuData.menu || []);
+        }
       } catch (err) {
         console.error("Auth check or loading failed", err);
       }
@@ -58,9 +59,8 @@ export default function StudentMenu() {
 
     const interval = setInterval(async () => {
       try {
-        const menuRes = await fetch("/api/menu");
-        if (menuRes.ok) {
-          const menuData = await menuRes.json();
+        const { ok: menuOk, data: menuData } = await safeFetchJson<{ menu?: MenuItem[] }>("/api/menu");
+        if (menuOk) {
           const nextMenu: MenuItem[] = menuData.menu || [];
           setMenu((prevMenu) => {
             if (prevMenu.length > 0) {
@@ -89,9 +89,8 @@ export default function StudentMenu() {
             return nextMenu;
           });
         }
-        const orderRes = await fetch("/api/orders");
-        if (orderRes.ok) {
-          const orderData = await orderRes.json();
+        const { ok: orderOk, data: orderData } = await safeFetchJson<{ orders?: Order[] }>("/api/orders");
+        if (orderOk) {
           setOrders(orderData.orders || []);
         }
       } catch (e) {
@@ -135,8 +134,8 @@ export default function StudentMenu() {
   const handleClearHistory = async () => {
     setClearingOrders(true);
     try {
-      const res = await fetch("/api/orders", { method: "DELETE" });
-      if (res.ok) {
+      const { ok } = await safeFetchJson("/api/orders", { method: "DELETE" });
+      if (ok) {
         setOrders((prev) => prev.filter((o) => o.status !== "Fulfilled" && o.status !== "Cancelled"));
       }
     } catch (err) {
@@ -157,16 +156,25 @@ export default function StudentMenu() {
         paymentMethod,
       };
 
-      const res = await fetch("/api/checkout/create-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const { ok, status, data } = await safeFetchJson<{ url?: string; error?: string }>(
+        "/api/checkout/create-session",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
 
-      const data = await res.json();
-
-      if (!res.ok) {
+      if (!ok) {
+        if (status === 401) {
+          router.push("/login");
+          return;
+        }
         throw new Error(data.error || "Checkout failed");
+      }
+
+      if (!data.url) {
+        throw new Error("Invalid response from server. Please try again.");
       }
 
       setCart([]);
@@ -179,7 +187,7 @@ export default function StudentMenu() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth", { method: "DELETE" });
+    await safeFetchJson("/api/auth", { method: "DELETE" });
     router.push("/login");
   };
 
@@ -191,7 +199,7 @@ export default function StudentMenu() {
     setReviewSuccess(false);
 
     try {
-      const res = await fetch("/api/reviews", {
+      const { ok, data } = await safeFetchJson<{ success?: boolean; error?: string }>("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -201,9 +209,7 @@ export default function StudentMenu() {
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
+      if (!ok) {
         throw new Error(data.error || "Review submission failed");
       }
 
@@ -220,6 +226,7 @@ export default function StudentMenu() {
       setReviewLoading(false);
     }
   };
+
 
   const filteredMenu = menu.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());

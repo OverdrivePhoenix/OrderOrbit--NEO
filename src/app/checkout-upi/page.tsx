@@ -7,6 +7,7 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import Image from "next/image";
 import ThemeToggle from "@/components/ThemeToggle";
+import { safeFetchJson } from "@/lib/utils";
 
 function UpiCheckoutContent() {
   const searchParams = useSearchParams();
@@ -35,10 +36,11 @@ function UpiCheckoutContent() {
 
     const loadOrderDetails = async () => {
       try {
-        const res = await fetch(`/api/checkout/details?session_id=${sessionId}`);
-        const data = await res.json();
+        const { ok, data } = await safeFetchJson<{ order?: Order; error?: string }>(
+          `/api/checkout/details?session_id=${sessionId}`
+        );
         
-        if (!res.ok) {
+        if (!ok || !data.order) {
           throw new Error(data.error || "Order not found");
         }
         setOrder(data.order);
@@ -87,29 +89,28 @@ function UpiCheckoutContent() {
 
         // 2. Call backend verify-screenshot endpoint
         try {
-          const res = await fetch("/api/checkout/verify-screenshot", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sessionId,
-              screenshot: base64Data,
-            }),
-          });
+          const { ok, data } = await safeFetchJson<{ verified?: boolean; order?: Order; error?: string }>(
+            "/api/checkout/verify-screenshot",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sessionId,
+                screenshot: base64Data,
+              }),
+            }
+          );
 
-          const data = await res.json();
-
-          if (!res.ok) {
+          if (!ok) {
             throw new Error(data.error || "Failed to verify screenshot");
           }
 
           if (data.verified) {
             setOcrSuccess(true);
-            setConfirmedOrder(data.order);
+            setConfirmedOrder(data.order || null);
           } else {
-            // AI could not verify automatically (amount/UTR mismatch or OCR fail)
-            // But the backend automatically queued it as "Pending Verification"
             setOcrError(data.error || "AI could not verify receipt automatically.");
-            setConfirmedOrder(data.order); // Contains the UTR-loaded manual check order
+            setConfirmedOrder(data.order || null);
           }
         } catch (err: any) {
           setOcrError(err.message || "AI Verification failed. Please try again.");
@@ -126,12 +127,13 @@ function UpiCheckoutContent() {
   const handleCancelOrder = async () => {
     if (!sessionId) return;
     try {
-      await fetch(`/api/checkout/cancel?session_id=${sessionId}`);
+      await safeFetchJson(`/api/checkout/cancel?session_id=${sessionId}`);
       router.push("/menu");
     } catch (e) {
       console.error("Cancel failed", e);
     }
   };
+
 
   if (loading) {
     return (
