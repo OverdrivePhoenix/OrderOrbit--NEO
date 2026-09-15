@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# nested folder (not part of this repo)
+/NEO-OrderOrbit/
