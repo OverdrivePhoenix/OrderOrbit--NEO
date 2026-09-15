@@ -9,6 +9,7 @@ import {
 } from "@/lib/firebase-admin";
 import { getCredentials, saveCredentials, deleteCredentials } from "@/lib/firebase";
 import { sendActivationEmail } from "@/lib/email";
+import bcrypt from "bcryptjs";
 
 async function checkAdmin(req: NextRequest) {
   const user = await getSessionUser();
@@ -53,11 +54,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { userId, action } = await req.json();
+    const { userId, action, newPassword } = await req.json();
     if (
       !userId ||
       !action ||
-      !["approve", "reject", "suspend", "unsuspend", "revoke"].includes(action)
+      !["approve", "reject", "suspend", "unsuspend", "revoke", "reset-password"].includes(action)
     ) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
@@ -128,6 +129,15 @@ export async function PATCH(req: NextRequest) {
       await deleteCredentials(userId);
       await adminUpdateDoc("users", userId, { status: "pending" });
       return NextResponse.json({ success: true, message: "User access revoked." });
+    }
+
+    if (action === "reset-password") {
+      if (!newPassword || newPassword.length < 6) {
+        return NextResponse.json({ error: "New password must be at least 6 characters" }, { status: 400 });
+      }
+      const hash = await bcrypt.hash(newPassword, 10);
+      await saveCredentials(userId, { passwordHash: hash });
+      return NextResponse.json({ success: true, message: "Password reset successfully. User can now log in with the new password." });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
