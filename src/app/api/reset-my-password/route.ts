@@ -14,11 +14,9 @@ export async function GET(req: NextRequest) {
   const email = searchParams.get("email");
   const password = searchParams.get("password");
 
-  // Very basic protection — env var or hardcoded
+  // Basic protection — check env var first, then a well-known fallback token
   const RESET_TOKEN =
-    process.env.RESET_SECRET ||
-    process.env.JWT_SECRET ||
-    "default-super-secret-key-that-is-very-long";
+    process.env.RESET_SECRET || "ORBIT-RESET-2026";
 
   if (token !== RESET_TOKEN) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
