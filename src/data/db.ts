@@ -364,10 +364,6 @@ export class Database {
         if (menuItem.stock < cartItem.quantity) {
           throw new Error(`Insufficient stock for "${menuItem.name}". Only ${menuItem.stock} servings remaining.`);
         }
-        // Concurrency Check (Optimistic Locking)
-        if (cartItem.version !== undefined && menuItem.version !== undefined && menuItem.version !== cartItem.version) {
-          throw new Error(`Concurrency collision: "${menuItem.name}" was modified by another transaction. Please reload the menu and try again.`);
-        }
       }
 
       // 2. Decrement stock, calculate totals, increment version
@@ -556,9 +552,6 @@ export class Database {
         }
         if (menuItem.stock < cartItem.quantity) {
           throw new Error(`Insufficient stock for "${menuItem.name}". Only ${menuItem.stock} servings remaining.`);
-        }
-        if (cartItem.version !== undefined && menuItem.version !== undefined && menuItem.version !== cartItem.version) {
-          throw new Error(`Concurrency collision: "${menuItem.name}" was modified by another transaction. Please reload the menu and try again.`);
         }
         total += menuItem.price * cartItem.quantity;
       }

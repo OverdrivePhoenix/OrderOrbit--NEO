@@ -88,6 +88,19 @@ export default function StudentMenu() {
             }
             return nextMenu;
           });
+
+          setCart((prevCart) => {
+            if (prevCart.length === 0) return prevCart;
+            return prevCart
+              .map((c) => {
+                const fresh = nextMenu.find((m) => m.id === c.item.id);
+                if (!fresh) return null;
+                const newQty = Math.min(c.quantity, fresh.stock);
+                if (newQty <= 0 || !fresh.available) return null;
+                return { ...c, item: fresh, quantity: newQty };
+              })
+              .filter((c): c is { item: MenuItem; quantity: number } => c !== null);
+          });
         }
         const { ok: orderOk, data: orderData } = await safeFetchJson<{ orders?: Order[] }>("/api/orders");
         if (orderOk) {
