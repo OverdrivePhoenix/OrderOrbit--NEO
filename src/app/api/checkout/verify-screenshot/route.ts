@@ -17,7 +17,12 @@ export async function POST(req: NextRequest) {
 
     // Load pending order
     const dbData = await Database.read();
-    const order = dbData.orders.find((o) => o.sessionId === sessionId);
+    let order = dbData.orders.find((o) => o.sessionId === sessionId);
+    if (!order) {
+      const ordersToken = req.cookies.get("orbit_orders")?.value;
+      const cookieOrders = ordersToken ? await verifyOrders(ordersToken) : [];
+      order = cookieOrders.find((o) => o.sessionId === sessionId);
+    }
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }

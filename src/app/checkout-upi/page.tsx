@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Order } from "@/data/db";
 import Link from "next/link";
 import QRCode from "qrcode";
-import Image from "next/image";
 import ThemeToggle from "@/components/ThemeToggle";
 import { safeFetchJson } from "@/lib/utils";
 
@@ -26,6 +25,7 @@ function UpiCheckoutContent() {
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
@@ -62,7 +62,10 @@ function UpiCheckoutContent() {
       const upiLink = `upi://pay?pa=${upiPayee}&pn=${encodeURIComponent(upiName)}&am=${orderTotalInRupees.toFixed(2)}&tn=${order.id}&cu=INR`;
       QRCode.toDataURL(upiLink, { width: 250, margin: 1 })
         .then(url => setQrCodeUrl(url))
-        .catch(err => console.error("Failed to generate local QR code", err));
+        .catch(err => {
+          console.error("Failed to generate local QR code, using fallback generator", err);
+          setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiLink)}`);
+        });
     }
   }, [order]);
 
@@ -285,30 +288,55 @@ function UpiCheckoutContent() {
           </div>
         </div>
 
-        {/* UPI ID Info */}
-        <div className="text-xs font-semibold text-muted-foreground text-center bg-muted/40 border border-border p-3 rounded-xl flex items-center justify-center gap-1.5">
-          <span className="material-symbols-outlined text-sm text-primary">account_balance_wallet</span>
-          Pay To Canteen UPI: <span className="font-extrabold text-foreground">{upiPayee}</span>
+        {/* UPI ID Info with Copy Button */}
+        <div className="text-xs font-semibold text-muted-foreground bg-muted/40 border border-border p-3 rounded-xl flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 overflow-hidden">
+            <span className="material-symbols-outlined text-sm text-primary">account_balance_wallet</span>
+            <span className="truncate">UPI: <span className="font-extrabold text-foreground">{upiPayee}</span></span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(upiPayee);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }
+            }}
+            className="text-xs px-2.5 py-1 rounded-lg bg-card border border-border text-foreground hover:bg-muted font-bold transition-all cursor-pointer flex-shrink-0"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
         </div>
 
         {/* QR Code Container (High-contrast light card for scanners) */}
         <div className="bg-white border border-border rounded-2xl p-6 flex flex-col items-center shadow-sm min-h-[300px] justify-center text-slate-800">
           {qrCodeUrl ? (
-            <Image
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
               src={qrCodeUrl}
               alt="UPI QR Code"
-              width={208}
-              height={208}
               className="w-52 h-52 object-contain border border-slate-100 rounded-xl"
             />
           ) : (
-            <div className="w-52 h-52 flex items-center justify-center border border-slate-100 rounded-xl bg-slate-50">
+            <div className="w-52 h-52 flex flex-col items-center justify-center border border-slate-100 rounded-xl bg-slate-50 gap-2">
               <div className="w-8 h-8 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
+              <p className="text-[11px] text-slate-500 font-medium">Generating QR...</p>
             </div>
           )}
           <p className="text-[10px] text-slate-500 font-bold mt-4 tracking-wide text-center uppercase">
             SCAN QR WITH GOOGLE PAY, PHONEPE, OR PAYTM TO PAY
           </p>
+
+          {order && (
+            <a
+              href={`upi://pay?pa=${upiPayee}&pn=${encodeURIComponent("OrderOrbit College Canteen")}&am=${orderTotalInRupees.toFixed(2)}&tn=${order.id}&cu=INR`}
+              className="mt-3 text-xs font-bold text-primary hover:underline flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">open_in_new</span>
+              Pay via UPI App Directly
+            </a>
+          )}
         </div>
 
         {/* File Uploader */}
@@ -326,7 +354,8 @@ function UpiCheckoutContent() {
             />
             {previewUrl ? (
               <div className="relative w-full h-44 rounded-xl overflow-hidden border border-border bg-white flex items-center justify-center">
-                <Image src={previewUrl} alt="Receipt preview" width={300} height={300} className="h-full object-contain" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={previewUrl} alt="Receipt preview" className="h-full object-contain" />
               </div>
             ) : (
               <div className="text-center py-4 space-y-2">
