@@ -2,7 +2,41 @@ import fs from "fs";
 import path from "path";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { getFirestoreCollection, syncCollectionToFirestore } from "../lib/firebase";
+import {
+  adminGetCollection,
+  adminGetDoc,
+  adminSetDoc,
+  adminUpdateDoc,
+  adminDeleteDoc,
+  getAdminDb,
+} from "../lib/firebase-admin";
+
+
+/**
+ * Syncs an array of items to a Firestore collection using the Admin SDK.
+ * Replaces each document by ID. Uses batched writes for efficiency.
+ * Falls back to local-only (no-op) when Admin SDK is not configured.
+ */
+async function adminSyncCollection(colName: string, items: any[]): Promise<void> {
+  if (!items || items.length === 0) return;
+  try {
+    const db = getAdminDb();
+    const batch = db.batch();
+    for (const item of items) {
+      if (!item.id) continue;
+      const ref = db.collection(colName).doc(item.id);
+      // Strip undefined values
+      const clean: Record<string, any> = {};
+      for (const [k, v] of Object.entries(item)) {
+        if (v !== undefined) clean[k] = v;
+      }
+      batch.set(ref, clean, { merge: true });
+    }
+    await batch.commit();
+  } catch (error) {
+    console.error(`adminSyncCollection(${colName}) failed:`, error);
+  }
+}
 
 // Global Mutex to synchronize all database operations
 class Mutex {
@@ -228,13 +262,13 @@ export class Database {
       console.error("Failed to read database file:", error);
     }
 
-    // 2. Fetch and merge from Firestore
+    // 2. Fetch and merge from Firestore (Admin SDK — works in serverless)
     try {
-      const firestoreMenu = await getFirestoreCollection("menu");
-      const firestoreOrders = await getFirestoreCollection("orders");
-      const firestoreReviews = await getFirestoreCollection("reviews");
-      const firestoreDailySummaries = await getFirestoreCollection("dailySummaries");
-      const firestoreUsers = await getFirestoreCollection("users");
+      const firestoreMenu = await adminGetCollection("menu");
+      const firestoreOrders = await adminGetCollection("orders");
+      const firestoreReviews = await adminGetCollection("reviews");
+      const firestoreDailySummaries = await adminGetCollection("dailySummaries");
+      const firestoreUsers = await adminGetCollection("users");
 
       const hasFirestoreData =
         firestoreMenu.length > 0 ||
@@ -250,16 +284,16 @@ export class Database {
         if (firestoreDailySummaries.length > 0) db.dailySummaries = firestoreDailySummaries;
         if (firestoreUsers.length > 0) db.users = firestoreUsers;
       } else {
-        // Seed Firestore if empty
+        // Seed Firestore if empty (Admin SDK)
         console.log("Firestore collections are empty. Seeding with local db.json data...");
-        if (db.menu.length > 0) await syncCollectionToFirestore("menu", db.menu);
-        if (db.orders.length > 0) await syncCollectionToFirestore("orders", db.orders);
-        if (db.reviews.length > 0) await syncCollectionToFirestore("reviews", db.reviews);
-        if (db.dailySummaries.length > 0) await syncCollectionToFirestore("dailySummaries", db.dailySummaries);
-        if (db.users.length > 0) await syncCollectionToFirestore("users", db.users);
+        await adminSyncCollection("menu", db.menu);
+        await adminSyncCollection("orders", db.orders);
+        await adminSyncCollection("reviews", db.reviews);
+        await adminSyncCollection("dailySummaries", db.dailySummaries);
+        await adminSyncCollection("users", db.users);
       }
     } catch (error) {
-      console.error("Failed to read from or sync to Firestore, using local data:", error);
+      console.error("Failed to read from or sync to Firestore (Admin SDK), using local data:", error);
     }
 
     return db;
@@ -273,17 +307,17 @@ export class Database {
       console.error("Failed to write to database file:", error);
     }
 
-    // 2. Sync to Firestore
+    // 2. Sync to Firestore (Admin SDK — gRPC, works in serverless)
     try {
-      await syncCollectionToFirestore("menu", data.menu);
-      await syncCollectionToFirestore("orders", data.orders);
-      await syncCollectionToFirestore("reviews", data.reviews);
-      await syncCollectionToFirestore("dailySummaries", data.dailySummaries);
+      await adminSyncCollection("menu", data.menu);
+      await adminSyncCollection("orders", data.orders);
+      await adminSyncCollection("reviews", data.reviews);
+      await adminSyncCollection("dailySummaries", data.dailySummaries);
       if (data.users) {
-        await syncCollectionToFirestore("users", data.users);
+        await adminSyncCollection("users", data.users);
       }
     } catch (error) {
-      console.error("Failed to sync database to Firestore:", error);
+      console.error("Failed to sync database to Firestore (Admin SDK):", error);
     }
   }
 
@@ -518,26 +552,12 @@ export class Database {
     try {
       const db = await this.readState();
 
-      let user: any;
-      const { firestoreDb } = require("@/lib/firebase");
-
-      if (firestoreDb) {
-        // 1. Verify user exists and check wallet balance via Firestore
-        const { doc, getDoc } = require("firebase/firestore");
-        const userRef = doc(firestoreDb, "users", userId);
-        const userSnap = await getDoc(userRef);
-        
-        if (!userSnap.exists()) {
-          throw new Error("User not found in database");
-        }
-        user = userSnap.data();
-      } else {
+      // 1. Verify user exists and check wallet balance via Admin SDK
+      let user: any = await adminGetDoc("users", userId);
+      if (!user) {
         // Fallback: local users array
-        const localUser = db.users?.find((u) => u.id === userId);
-        if (!localUser) {
-          throw new Error("User not found in database");
-        }
-        user = localUser;
+        user = db.users?.find((u: any) => u.id === userId);
+        if (!user) throw new Error("User not found in database");
       }
 
       // Calculate total price in paise
@@ -561,13 +581,9 @@ export class Database {
         throw new Error(`Insufficient wallet balance. Total: ₹${(total / 100).toFixed(2)}, Balance: ₹${(balance / 100).toFixed(2)}`);
       }
 
-      // 2. Deduct wallet balance
+      // 2. Deduct wallet balance via Admin SDK
       user.walletBalance = balance - total;
-      if (firestoreDb) {
-        const { doc, updateDoc } = require("firebase/firestore");
-        const userRef = doc(firestoreDb, "users", userId);
-        await updateDoc(userRef, { walletBalance: user.walletBalance });
-      }
+      await adminUpdateDoc("users", userId, { walletBalance: user.walletBalance });
 
       // 3. Decrement stock, calculate totals, increment version
       const orderItems: OrderItem[] = [];
@@ -622,29 +638,14 @@ export class Database {
   static async topupWallet(userId: string, amount: number): Promise<number> {
     const release = await dbMutex.acquire();
     try {
-      const { firestoreDb } = require("@/lib/firebase");
-      if (firestoreDb) {
-        const { doc, getDoc, updateDoc } = require("firebase/firestore");
-        const userRef = doc(firestoreDb, "users", userId);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          throw new Error("User not found");
-        }
-        const user = userSnap.data();
-        user.walletBalance = (user.walletBalance || 0) + amount;
-        await updateDoc(userRef, { walletBalance: user.walletBalance });
-        return user.walletBalance;
-      } else {
-        // Fallback: local users array
-        const db = await this.readState();
-        const user = db.users?.find((u) => u.id === userId);
-        if (!user) {
-          throw new Error("User not found");
-        }
-        user.walletBalance = (user.walletBalance || 0) + amount;
-        await this.writeState(db);
-        return user.walletBalance;
+      // Use Admin SDK for wallet top-up (works in serverless)
+      const user = await adminGetDoc("users", userId);
+      if (!user) {
+        throw new Error("User not found");
       }
+      const newBalance = (user.walletBalance || 0) + amount;
+      await adminUpdateDoc("users", userId, { walletBalance: newBalance });
+      return newBalance;
     } finally {
       release();
     }
